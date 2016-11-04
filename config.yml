@@ -1,0 +1,12 @@
+# This is a config file for baker.
+
+server: # baker server settings.
+  addr: "127.0.0.1:8000" # address to listen on.
+
+users:
+  # Password is specified as a BCrypt hash. Use htpasswd -B to generate.
+  "admin":
+    password: "$2y$05$LO.vzwpWC5LZGqThvEfznu8qhb5SGqvBSWY1J3yZ4AxtMRZ3kN5jC"  # badmin
+  "test":
+    password: "$2y$05$WuwBasGDAgr.QCbGIjKJaep4dhxeai9gNZdmBnQXqpKly57oNutya"  # 123
+

@@ -1,0 +1,8 @@
+uploads:
+  dev.properties.1:
+    download_path: "/borgsphere/2841089c77268bfde97f7155ef416537a3e3e42e/bfde97f/dev"
+    container_path: "/go-jobs"
+  dev.properties.2:
+    download_path: "/borgsphere/2841089c77268bfde97f7155ef416537a3e3e42e/bfde97f/dev"
+    container_path: "/go-jobs"
+

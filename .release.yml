@@ -1,0 +1,42 @@
+# This is a example blueprint file.
+
+# Image build from source code, trigger by Jenkis last succuss build job.
+buildpack:
+  image: # Base image.
+  command: # Compile and build commands.
+  envVars: # 
+    REPO_TYPE: Git # Repositories type: git/subversion.      
+    REPO_URL: # Repositories url.
+    REPO_BRANCH: # release branch.
+    REPO_CREDENTIALS: # Repositories credentials.
+    JENKIS_SERVER: # Jenkins Server. 
+    JENKIS_JOB_NAME: # Jenkins Job Name.
+    JENKIS_USERNAME: # Jenkins username.
+    JENKIS_PASSWORD: # Jenkins password.
+
+# Image build from binary file.
+# binary file and Dockerfile needs to upload to FTP Server.    
+pack:
+  image: # Base image.
+  binary: # binary file.
+  envVars:
+     FTP_SERVER: # ftp server.
+     FTP_USERNAME: # ftp username.
+     FTP_PASSWORD: # ftp password.    
+     
+# Config management.
+configs:
+  config_version:
+  label: # dev/test/prod.        
+
+# Rolling upgrade. 
+canary:
+  rule: # vcluster/instance/duration. 
+  ic 1, 1day # vcluster=ic,instance=1,duration=1day.
+  ic 5, 1day # vcluster=ic,instance=5,duration=1day.
+  ic 100, 1day  # vcluster=ic, instance=100,duration=1day.
+  all dc # all instance.
+
+# Rollback.
+rollbak:
+  trigger: manual      
