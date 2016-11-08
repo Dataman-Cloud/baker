@@ -21,7 +21,7 @@ func Login(c *gin.Context, username, password string) (*model.User, error) {
 		c.AbortWithError(http.StatusUnauthorized, errors.New("username or password is empty"))
 		return nil, errors.New("username or password is empty.")
 	}
-	staticUsersStore := c.MustGet("store").(store.Store)
+	staticUsersStore := store.FromContext(c)
 	if _, err := staticUsersStore.Authenticate(username, password); err != nil {
 		logrus.Errorf("authorize failed.")
 		c.AbortWithError(http.StatusUnauthorized, errors.New("authenticate failed."))
@@ -33,7 +33,8 @@ func Login(c *gin.Context, username, password string) (*model.User, error) {
 // Auth authenticates the session and returns the remote user
 // login for the given token and secret
 func Auth(c *gin.Context, token, secret string) (*model.User, error) {
-	user, err := cache.GetUserLogin(c, token)
+	cache := c.MustGet("cache").(cache.Cache)
+	user, err := cache.GetUserLogin(token)
 	if err != nil {
 		logrus.Errorf("authorize failed.")
 		c.AbortWithError(http.StatusUnauthorized, errors.New("authenticate failed."))

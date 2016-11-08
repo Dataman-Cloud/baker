@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/dgrijalva/jwt-go"
 )
-
-const Key = "secret"
 
 type SecretFunc func(*Token) (string, error)
 
@@ -31,6 +30,7 @@ func Parse(raw string, fn SecretFunc) (*Token, error) {
 	token := &Token{}
 	parsed, err := jwt.Parse(raw, keyFunc(token, fn))
 	if err != nil {
+		logrus.Infof("err in jwt parse:%s", err)
 		return nil, err
 	} else if !parsed.Valid {
 		return nil, jwt.ValidationError{}
@@ -40,7 +40,6 @@ func Parse(raw string, fn SecretFunc) (*Token, error) {
 
 func ParseRequest(r *http.Request, fn SecretFunc) (*Token, error) {
 	var token = r.Header.Get("Authorization")
-
 	// first we attempt to get the token from the
 	// authorization header.
 	if len(token) != 0 {
@@ -94,11 +93,11 @@ func (t *Token) Sign(secret string) (string, error) {
 // with an expiration date.
 func (t *Token) SignExpires(secret string, exp int64) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
-	//token.Claims["type"] = t.Kind
-	//token.Claims["text"] = t.Text
-	//if exp > 0 {
-	//	token.Claims["exp"] = float64(exp)
-	//}
+	token.Header["type"] = t.Kind
+	token.Header["text"] = t.Text
+	if exp > 0 {
+		token.Header["exp"] = float64(exp)
+	}
 	return token.SignedString([]byte(secret))
 }
 
@@ -111,19 +110,19 @@ func keyFunc(token *Token, fn SecretFunc) jwt.Keyfunc {
 
 		// extract the token kind and cast to
 		// the expected type.
-		//		kindv, ok := t.Claims["type"]
-		//		if !ok {
-		//			return nil, jwt.ValidationError{}
-		//		}
-		//		token.Kind, _ = kindv.(string)
+		kindv, ok := t.Header["type"]
+		if !ok {
+			return nil, jwt.ValidationError{}
+		}
+		token.Kind, _ = kindv.(string)
 
 		// extract the token value and cast to
 		// exepected type.
-		//		textv, ok := t.Claims["text"]
-		//		if !ok {
-		//			return nil, jwt.ValidationError{}
-		//		}
-		//		token.Text, _ = textv.(string)
+		textv, ok := t.Header["text"]
+		if !ok {
+			return nil, jwt.ValidationError{}
+		}
+		token.Text, _ = textv.(string)
 
 		// invoke the callback function to retrieve
 		// the secret key used to verify

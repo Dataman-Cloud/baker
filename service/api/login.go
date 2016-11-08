@@ -53,10 +53,14 @@ func GetLogin(c *gin.Context) {
 	// update userLogin in Context.
 	user.Token = tokenstr
 	user.Expiry = exp
-	cache.SetUserLogin(c, user)
+	cache := c.MustGet("cache").(cache.Cache)
+	cache.SetUserLogin(user)
 
 	httputil.SetCookie(c.Writer, c.Request, "user_sess", tokenstr)
-	c.Redirect(303, "/")
+	c.JSON(http.StatusOK, &tokenPayload{
+		Access:  tokenstr,
+		Expires: exp - time.Now().Unix(),
+	})
 }
 
 func GetLogout(c *gin.Context) {
@@ -95,7 +99,8 @@ func GetLoginToken(c *gin.Context) {
 	// update userLogin in Context.
 	user.Token = tokenstr
 	user.Expiry = exp
-	cache.SetUserLogin(c, user)
+	cache := c.MustGet("cache").(cache.Cache)
+	cache.SetUserLogin(user)
 
 	c.JSON(http.StatusOK, &tokenPayload{
 		Access:  tokenstr,

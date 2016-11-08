@@ -17,6 +17,6 @@ func Cache(cli *cli.Context) gin.HandlerFunc {
 }
 
 // helper function to create the cache from the CLI context.
-func setupCache(c *cli.Context) *cache.Cache {
-	return &cache.Cache{}
+func setupCache(c *cli.Context) cache.Cache {
+	return cache.NewUserLoginCache()
 }

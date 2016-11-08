@@ -13,7 +13,7 @@ import (
 // Store is a middleware function that initializes the Store and attaches to
 // the context of every http.Request.
 func Store(cli *cli.Context) gin.HandlerFunc {
-	v := setupStore(cli)
+	v := setupStaticUsersStore(cli)
 	return func(c *gin.Context) {
 		store.ToContext(c, v)
 		c.Next()
@@ -21,7 +21,7 @@ func Store(cli *cli.Context) gin.HandlerFunc {
 }
 
 // helper function to create the Store from the CLI context config-path.
-func setupStore(c *cli.Context) store.Store {
+func setupStaticUsersStore(c *cli.Context) store.Store {
 	// read the configuration
 	logrus.Infof("Configuration path: %s", c.String("config-path"))
 	config, err := config.Decode(c.String("config-path"))

@@ -1,5 +1,5 @@
 #!/bin/bash
 
-../../bin/baker server
+../../bin/baker server --debug
 
 

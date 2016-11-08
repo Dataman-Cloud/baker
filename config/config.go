@@ -10,7 +10,7 @@ import (
 // Config type.
 type Config struct {
 	Server ServerConfig         `yaml:"server"`
-	Users  map[string]Authorize `yaml:"users,omitempty"`
+	Users  map[string]Authorize `yaml:"users"`
 }
 
 // ServerConfig type.
