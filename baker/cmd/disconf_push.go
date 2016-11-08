@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,12 +14,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
+
+	"github.com/Dataman-Cloud/baker/client"
 )
 
 const (
+	serverUrl = "127.0.0.1:8000"
 	username  = "admin"
 	password  = "badmin"
-	serverUrl = "127.0.0.1:8000"
 )
 
 var DisConfPushCmd = cli.Command{
@@ -37,6 +38,21 @@ var DisConfPushCmd = cli.Command{
 			Usage: "ymlfile for uploading config files",
 			Value: "push.yml",
 		},
+		cli.StringFlag{
+			Name:  "serverUrl",
+			Usage: "baker server uri",
+			Value: serverUrl,
+		},
+		cli.StringFlag{
+			Name:  "username",
+			Usage: "username to login baker server.",
+			Value: username,
+		},
+		cli.StringFlag{
+			Name:  "password",
+			Usage: "password to login baker server.",
+			Value: password,
+		},
 	},
 }
 
@@ -51,6 +67,7 @@ type FileParam struct {
 
 func disConfPush(c *cli.Context) error {
 	logrus.Infof("push config files into disconf.")
+	var err error
 	ymlfile := c.String("ymlfile")
 	buf, err := ioutil.ReadFile(ymlfile)
 	if err != nil {
@@ -63,33 +80,11 @@ func disConfPush(c *cli.Context) error {
 		logrus.Fatalf("error unmarshal jsonfile:%s", ymlfile)
 		return err
 	}
-	// login request to baker server.
-	loginUrl := fmt.Sprintf("http://%s/authorize", serverUrl)
-	loginPayLoad := fmt.Sprintf("{\"username\":\"%s\",\"password\":\"%s\"}", username, password)
-	loginReq, err := http.NewRequest("POST", loginUrl, bytes.NewBuffer([]byte(loginPayLoad)))
-	loginReq.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	loginResp, err := client.Do(loginReq)
+
+	baseUrl := c.String("serverUrl")
+	client, err := client.NewHttpClient(baseUrl, c.String("username"), c.String("password"))
 	if err != nil {
-		logrus.Fatal("erro login.")
-		return err
-	}
-	defer loginResp.Body.Close()
-	loginRespBody, err := ioutil.ReadAll(loginResp.Body)
-	if err != nil {
-		logrus.Fatal("error read response in login request.")
-		return err
-	}
-	logrus.Info(loginResp.Status)
-	logrus.Infof(string(loginRespBody))
-	type Login struct {
-		Access  string `json:"access_token"`
-		Refresh int64  `json:"expires_in"`
-	}
-	var login Login
-	err = json.Unmarshal(loginRespBody, &login)
-	if err != nil {
-		logrus.Fatalf("error unmarshal for login response.%s", err)
+		logrus.Fatalf("erro login baker server", err)
 		return err
 	}
 
@@ -118,13 +113,14 @@ func disConfPush(c *cli.Context) error {
 		}
 
 		// post upload request to baker server.
-		downloadPath := url.QueryEscape(fileparam.DownloadPath)
-		containerPath := url.QueryEscape(fileparam.ContainerPath)
-		uploadUrl := fmt.Sprintf("http://%s/api/disconf/push?download-path=%s&container-path=%s", serverUrl, downloadPath, containerPath)
+		uploadUrl := fmt.Sprintf("http://%s/api/disconf/push?download-path=%s&container-path=%s",
+			baseUrl,
+			url.QueryEscape(fileparam.DownloadPath),
+			url.QueryEscape(fileparam.ContainerPath))
 		contentType := bodyWriter.FormDataContentType()
 
 		req, err := http.NewRequest("POST", uploadUrl, bodyBuf)
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", login.Access))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.Token))
 		req.Header.Set("Content-Type", contentType)
 		client := &http.Client{}
 		resp, err := client.Do(req)
