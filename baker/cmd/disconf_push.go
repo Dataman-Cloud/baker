@@ -17,15 +17,9 @@ import (
 	"github.com/Dataman-Cloud/baker/client"
 )
 
-const (
-	serverUrl = "127.0.0.1:8000"
-	username  = "admin"
-	password  = "badmin"
-)
-
 var DisConfPushCmd = cli.Command{
 	Name:  "push",
-	Usage: "push config files into config management",
+	Usage: "push config files to disconfig",
 	Action: func(c *cli.Context) {
 		if err := disConfPush(c); err != nil {
 			logrus.Fatal(err)
@@ -38,27 +32,12 @@ var DisConfPushCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "label",
-			Usage: "application label name (such as: dev,test,prod....).",
+			Usage: "application label",
 		},
 		cli.StringFlag{
 			Name:  "ymlfile",
 			Usage: "ymlfile for uploading config files",
 			Value: "push.yml",
-		},
-		cli.StringFlag{
-			Name:  "serverUrl",
-			Usage: "baker server uri",
-			Value: serverUrl,
-		},
-		cli.StringFlag{
-			Name:  "username",
-			Usage: "username to login baker server.",
-			Value: username,
-		},
-		cli.StringFlag{
-			Name:  "password",
-			Usage: "password to login baker server.",
-			Value: password,
 		},
 	},
 }
@@ -75,37 +54,37 @@ func disConfPush(c *cli.Context) error {
 	// validation.
 	appName := c.String("name")
 	if appName == "" {
-		logrus.Fatal("no name input")
-		return errors.New("no name input.")
+		logrus.Fatal("no name in input.")
+		return errors.New("no name in input.")
 	}
 	label := c.String("label")
 	if label == "" {
-		logrus.Fatal("no label input")
+		logrus.Fatal("no label in input.")
 		return errors.New("no label input.")
 	}
-
-	logrus.Infof("push config files into disconf.")
-	var err error
 	ymlfile := c.String("ymlfile")
 	buf, err := ioutil.ReadFile(ymlfile)
 	if err != nil {
-		logrus.Fatalf("error open ymlfile: %s", ymlfile)
+		logrus.Fatalf("error open ymlfile: %s", err)
 		return err
 	}
 	upload := &Upload{}
 	err = yaml.Unmarshal(buf, upload)
 	if err != nil {
-		logrus.Fatalf("error unmarshal jsonfile:%s", ymlfile)
+		logrus.Fatalf("error unmarshal ymlfile: %s", err)
 		return err
 	}
 
-	baseUrl := c.String("serverUrl")
-	client, err := client.NewHttpClient(baseUrl, c.String("username"), c.String("password"))
+	// login baker server
+	baseUri := c.GlobalString("server")
+	client, err := client.NewHttpClient(baseUri, c.GlobalString("username"), c.GlobalString("password"))
 	if err != nil {
 		logrus.Fatalf("erro login baker server", err)
 		return err
 	}
 
+	// disconf push
+	logrus.Infof("push config files into disconf.")
 	logrus.Infof("upload files size:%d", len(upload.Files))
 	for filename, fileparam := range upload.Files {
 		path, _ := os.Getwd()
@@ -115,20 +94,21 @@ func disConfPush(c *cli.Context) error {
 			"label":          label,
 			"container-path": fileparam.ContainerPath,
 		}
-		req, err := fileUploadRequest("http://"+baseUrl+"/api/disconf/push", client.Token, "uploadfile", path, extraParams)
+		req, err := fileUploadRequest("http://"+baseUri+"/api/disconf/push", client.Token, "uploadfile", path, extraParams)
 		if err != nil {
-			logrus.Fatalf("error make file upload request.%s ", err)
+			logrus.Fatalf("error new disconf push request: %s ", err)
+			return err
 		}
-		client := &http.Client{}
-		resp, err := client.Do(req)
+		httpClient := &http.Client{}
+		resp, err := httpClient.Do(req)
 		if err != nil {
-			logrus.Fatalf("error upload to baker server.%s", err)
+			logrus.Fatalf("error disconf push request: %s", err)
 			return err
 		}
 		defer resp.Body.Close()
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			logrus.Fatalf("error read response in upload request.%s", err)
+			logrus.Fatalf("error read response in disconf push: %s", err)
 			return err
 		}
 		logrus.Info(resp.Status)
