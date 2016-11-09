@@ -13,10 +13,9 @@ import (
 // Load loads the router
 func Load(middleware ...gin.HandlerFunc) http.Handler {
 	e := gin.New()
-
 	e.Use(gin.Recovery())
 
-	fs := http.FileServer(http.Dir("/disconf"))
+	fs := http.FileServer(http.Dir("/fileserver"))
 	e.GET("/static/*filepath", func(c *gin.Context) {
 		fs.ServeHTTP(c.Writer, c.Request)
 	})

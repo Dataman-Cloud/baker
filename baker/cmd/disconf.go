@@ -5,8 +5,8 @@ import (
 )
 
 var DisConfCmd = cli.Command{
-	Name:  "config",
-	Usage: "app config file management.",
+	Name:  "disconf",
+	Usage: "app property file management.",
 	Subcommands: []cli.Command{
 		DisConfPushCmd,
 		DisConfPullCmd,

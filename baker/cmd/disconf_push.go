@@ -2,12 +2,11 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 
 	yaml "gopkg.in/yaml.v2"
@@ -33,6 +32,14 @@ var DisConfPushCmd = cli.Command{
 		}
 	},
 	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "name",
+			Usage: "application name",
+		},
+		cli.StringFlag{
+			Name:  "label",
+			Usage: "application label name (such as: dev,test,prod....).",
+		},
 		cli.StringFlag{
 			Name:  "ymlfile",
 			Usage: "ymlfile for uploading config files",
@@ -61,11 +68,22 @@ type Upload struct {
 }
 
 type FileParam struct {
-	DownloadPath  string `yaml:"download_path"`  // download path.
 	ContainerPath string `yaml:"container_path"` // container path.
 }
 
 func disConfPush(c *cli.Context) error {
+	// validation.
+	appName := c.String("name")
+	if appName == "" {
+		logrus.Fatal("no name input")
+		return errors.New("no name input.")
+	}
+	label := c.String("label")
+	if label == "" {
+		logrus.Fatal("no label input")
+		return errors.New("no label input.")
+	}
+
 	logrus.Infof("push config files into disconf.")
 	var err error
 	ymlfile := c.String("ymlfile")
@@ -90,52 +108,71 @@ func disConfPush(c *cli.Context) error {
 
 	logrus.Infof("upload files size:%d", len(upload.Files))
 	for filename, fileparam := range upload.Files {
-		// simulate web client to upload file.
-		bodyBuf := &bytes.Buffer{}
-		bodyWriter := multipart.NewWriter(bodyBuf)
-		defer bodyWriter.Close()
-		fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filename)
-		if err != nil {
-			logrus.Fatalf("error write to buffer: %s", filename)
-			return err
+		path, _ := os.Getwd()
+		path += "/" + filename
+		extraParams := map[string]string{
+			"app-name":       appName,
+			"label":          label,
+			"container-path": fileparam.ContainerPath,
 		}
-
-		fh, err := os.Open(filename)
+		req, err := fileUploadRequest("http://"+baseUrl+"/api/disconf/push", client.Token, "uploadfile", path, extraParams)
 		if err != nil {
-			logrus.Fatalf("error open file: %s", filename)
-			return err
+			logrus.Fatalf("error make file upload request.%s ", err)
 		}
-
-		_, err = io.Copy(fileWriter, fh)
-		if err != nil {
-			logrus.Fatalf("error copy file: %s", filename)
-			return err
-		}
-
-		// post upload request to baker server.
-		uploadUrl := fmt.Sprintf("http://%s/api/disconf/push?download-path=%s&container-path=%s",
-			baseUrl,
-			url.QueryEscape(fileparam.DownloadPath),
-			url.QueryEscape(fileparam.ContainerPath))
-		contentType := bodyWriter.FormDataContentType()
-
-		req, err := http.NewRequest("POST", uploadUrl, bodyBuf)
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.Token))
-		req.Header.Set("Content-Type", contentType)
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			logrus.Fatal("error upload to baker server.")
+			logrus.Fatalf("error upload to baker server.%s", err)
 			return err
 		}
 		defer resp.Body.Close()
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			logrus.Fatal("error read response in upload request.")
+			logrus.Fatalf("error read response in upload request.%s", err)
 			return err
 		}
 		logrus.Info(resp.Status)
 		logrus.Infof(string(respBody))
 	}
 	return nil
+}
+
+// fileUploadRequest is create a file upload http request with optional extra params
+func fileUploadRequest(uri string, token, uploadParamName, uploadFilePath string, extraParams map[string]string) (*http.Request, error) {
+	file, err := os.Open(uploadFilePath)
+	if err != nil {
+		return nil, err
+	}
+	fileContent, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	fi, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	file.Close()
+
+	body := new(bytes.Buffer)
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile(uploadParamName, fi.Name())
+	if err != nil {
+		return nil, err
+	}
+	part.Write(fileContent)
+
+	for key, val := range extraParams {
+		_ = writer.WriteField(key, val)
+	}
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	contentType := writer.FormDataContentType()
+
+	req, err := http.NewRequest("POST", uri, body)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Content-Type", contentType)
+	return req, err
 }

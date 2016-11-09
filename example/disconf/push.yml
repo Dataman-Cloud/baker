@@ -1,8 +1,6 @@
 uploads:
   1.properties:
-    download_path: "/app_name/dev"
     container_path: "/etc"
   2.properties:
-    download_path: "/app_name/dev"
     container_path: "/etc"
 

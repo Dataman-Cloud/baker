@@ -1,3 +1,3 @@
 #!/bin/bash
 
-../../bin/baker config push
+../../bin/baker disconf push --name app --label dev
