@@ -3,8 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	_ "path/filepath"
 
 	"github.com/Sirupsen/logrus"
@@ -60,12 +61,27 @@ func disConfPull(c *cli.Context) error {
 		return err
 	}
 	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
+	//respBody, err := ioutil.ReadAll(resp.Body)
+	//if err != nil {
+	//	logrus.Fatalf("error read response in disconf pull: %s", err)
+	//	return err
+	//}
+	//logrus.Info(resp.Status)
+	//logrus.Infof(string(respBody))
+
+	zipfile := "props.zip"
+	out, err := os.Create(zipfile)
 	if err != nil {
-		logrus.Fatalf("error read response in disconf pull: %s", err)
+		logrus.Fatalf("error create download file: %s", err)
 		return err
 	}
-	logrus.Info(resp.Status)
-	logrus.Infof(string(respBody))
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		logrus.Fatalf("error save file: %s", err)
+		return err
+	}
+
 	return nil
 }

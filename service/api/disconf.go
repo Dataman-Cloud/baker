@@ -1,10 +1,13 @@
 package api
 
 import (
+	"archive/zip"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
@@ -12,6 +15,7 @@ import (
 
 const (
 	baseDir = "/fileserver/disconf"
+	tmpDir  = "/tmp"
 )
 
 type disConfPayload struct {
@@ -19,7 +23,7 @@ type disConfPayload struct {
 }
 
 // DisConfPush is a endpoint that
-// push config files defined in jsonfile into config management.
+// push config files in disconf.
 func DisConfPush(c *gin.Context) {
 	appName := c.Request.FormValue("app-name")
 	label := c.Request.FormValue("label")
@@ -52,14 +56,50 @@ func DisConfPush(c *gin.Context) {
 }
 
 // DisConfPull is a endpoint that
-// pull config files in config management.
+// pull config files in disconfig.
 func DisConfPull(c *gin.Context) {
-	path := c.Query("path")
-	logrus.Infof("path:%s", path)
+	writer := c.Writer
+	path := baseDir + "" + c.Query("path")
+	zipfile := tmpDir + "/" + "props.zip"
+	err := zipit(path, zipfile)
+	if err != nil {
+		logrus.Error("error zip prop file. ")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	// write zipfile content to response body
+	openFile, err := os.Open(zipfile)
+	if err != nil {
+		logrus.Error("error open zipfile.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	//Get the Content-Type of the file
+	//Create a buffer to store the header of the file in
+	fileHeader := make([]byte, 512)
+	//Copy the headers into the FileHeader buffer
+	openFile.Read(fileHeader)
+	//Get content type of file
+	fileContentType := http.DetectContentType(fileHeader)
+
+	//Get the file size
+	fileStat, _ := openFile.Stat()                     //Get info from file
+	fileSize := strconv.FormatInt(fileStat.Size(), 10) //Get file size as a string
+
+	//Send the headers
+	writer.Header().Set("Content-Disposition", "attachment; filename="+zipfile)
+	writer.Header().Set("Content-Type", fileContentType)
+	writer.Header().Set("Content-Length", fileSize)
+
+	//Send the file
+	//We read 512 bytes from the file already so we reset the offset back to 0
+	openFile.Seek(0, 0)
+	io.Copy(writer, openFile) //'Copy' the file to the client
+	return
 }
 
 // DisConfList is a endpoint that
-// list config files in config management.
+// list config files in disconfig.
 func DisConfList(c *gin.Context) {
 	searchDir := baseDir + "" + c.Query("path")
 	fileList := []string{}
@@ -76,7 +116,68 @@ func DisConfList(c *gin.Context) {
 }
 
 // DisConfDel is a endpoint that
-// delete config files in config management.
+// delete config files in disconfig.
 func DisConfDel(c *gin.Context) {
 
+}
+
+func zipit(source, target string) error {
+	zipfile, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer zipfile.Close()
+
+	archive := zip.NewWriter(zipfile)
+	defer archive.Close()
+
+	info, err := os.Stat(source)
+	if err != nil {
+		return nil
+	}
+
+	var baseDir string
+	if info.IsDir() {
+		baseDir = filepath.Base(source)
+	}
+
+	filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+
+		if baseDir != "" {
+			header.Name = filepath.Join(baseDir, strings.TrimPrefix(path, source))
+		}
+
+		if info.IsDir() {
+			header.Name += "/"
+		} else {
+			header.Method = zip.Deflate
+		}
+
+		writer, err := archive.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		_, err = io.Copy(writer, file)
+		return err
+	})
+
+	return err
 }
