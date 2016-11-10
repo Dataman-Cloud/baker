@@ -27,8 +27,9 @@ type disConfPayload struct {
 func DisConfPush(c *gin.Context) {
 	appName := c.Request.FormValue("app-name")
 	label := c.Request.FormValue("label")
+	version := c.Request.FormValue("version")
 	containerPath := c.Request.FormValue("container-path")
-	path := baseDir + "/" + appName + "/" + label + "" + containerPath
+	path := baseDir + "/" + appName + "/" + label + "/" + version + "" + containerPath
 
 	c.Request.ParseMultipartForm(32 << 20)
 	file, handler, err := c.Request.FormFile("uploadfile")
