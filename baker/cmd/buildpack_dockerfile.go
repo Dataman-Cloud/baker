@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
