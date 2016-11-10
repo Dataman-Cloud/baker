@@ -18,10 +18,6 @@ const (
 	tmpDir  = "/tmp"
 )
 
-type disConfPayload struct {
-	Filepath string
-}
-
 // DisConfPush is a endpoint that
 // push config files in disconf.
 func DisConfPush(c *gin.Context) {
@@ -53,7 +49,9 @@ func DisConfPush(c *gin.Context) {
 	}
 	defer f.Close()
 	io.Copy(f, file)
-	c.JSON(http.StatusOK, &disConfPayload{Filepath: containerPath})
+	c.JSON(http.StatusOK, struct {
+		Filepath string
+	}{containerPath})
 }
 
 // DisConfPull is a endpoint that
@@ -112,7 +110,9 @@ func DisConfList(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	c.JSON(http.StatusOK, fileList)
+	c.JSON(http.StatusOK, struct {
+		FileList []string
+	}{fileList})
 }
 
 // DisConfDel is a endpoint that
@@ -126,8 +126,8 @@ func DisConfDel(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, struct {
-		Code, Message string
-	}{"0", "disconf del is ok."})
+		Message string
+	}{"disconf del is ok."})
 }
 
 func zipit(source, target string) error {

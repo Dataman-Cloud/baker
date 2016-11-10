@@ -32,7 +32,7 @@ var BuildpackImportCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "propsFile",
-			Usage: "dump zip file for property files.",
+			Usage: "zip file of property files.",
 		},
 		cli.StringFlag{
 			Name:  "startupFile",

@@ -10,7 +10,7 @@ type Cache struct {
 	Users map[string]*model.User
 }
 
-func NewUserLoginCache() Cache {
+func NewCache() Cache {
 	return Cache{Users: make(map[string]*model.User)}
 }
 
