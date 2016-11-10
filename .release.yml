@@ -1,34 +1,15 @@
 # This is a example blueprint file.
 
-# Image build from source code, trigger by Jenkis last succuss build job.
+# Docker Image build from binary file.
 buildpack:
   image: # Base image.
-  command: # Compile and build commands.
-  envVars: # 
-    REPO_TYPE: Git # Repositories type: git/subversion.      
-    REPO_URL: # Repositories url.
-    REPO_BRANCH: # release branch.
-    REPO_CREDENTIALS: # Repositories credentials.
-    JENKIS_SERVER: # Jenkins Server. 
-    JENKIS_JOB_NAME: # Jenkins Job Name.
-    JENKIS_USERNAME: # Jenkins username.
-    JENKIS_PASSWORD: # Jenkins password.
-
-# Image build from binary file.
-# binary file and Dockerfile needs to upload to FTP Server.    
-pack:
-  image: # Base image.
-  binary: # binary file.
-  envVars:
-     FTP_SERVER: # ftp server.
-     FTP_USERNAME: # ftp username.
-     FTP_PASSWORD: # ftp password.    
+  binaryFile: # binary file. for example: app.war
+  binaryPath: # binary file in container path. for example: /usr/local/tomcat/webapp
+  propsFile: # props zip file. for example: props.zip
+  startupFile: # startup script file. for example: startup.sh
+  startCmd: #start command.
+  reloadCmd: #reload command.
      
-# Config management.
-configs:
-  config_version:
-  label: # dev/test/prod.        
-
 # Rolling upgrade. 
 canary:
   rule: # vcluster/instance/duration. 

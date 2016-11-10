@@ -8,6 +8,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	yaml "gopkg.in/yaml.v2"
 
@@ -92,6 +94,7 @@ func disConfPush(c *cli.Context) error {
 		extraParams := map[string]string{
 			"app-name":       appName,
 			"label":          label,
+			"version":        strconv.FormatInt(time.Now().Unix(), 10),
 			"container-path": fileparam.ContainerPath,
 		}
 		req, err := fileUploadRequest("http://"+baseUri+"/api/disconf/push", client.Token, "uploadfile", path, extraParams)

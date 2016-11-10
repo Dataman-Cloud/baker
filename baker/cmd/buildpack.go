@@ -8,27 +8,12 @@ import (
 
 var BuildpackCmd = cli.Command{
 	Name:  "buildpack",
-	Usage: "execute buildpack job from source code.",
-	Action: func(c *cli.Context) {
-		if err := build(c); err != nil {
-			log.Fatalln(err)
-		}
+	Usage: "execute buildpack job.",
+	Subcommands: []cli.Command{
+		BuildpackImportCmd,     // import app files in baker fileserver.
+		BuildpackListCmd,       // list app files in baker fileserver.
+		BuildpackDelCmd,        // delete app files in baker fileserver.
+		BuildpackDockerfileCmd, // pull or push dockerfile in baker fileserver.
+		BuildpackImageCmd,      // pull or push image in docker registry.
 	},
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "n, name",
-			Usage: "image name",
-		},
-		cli.StringFlag{
-			Name:  "r, release",
-			Value: ".release.yml",
-			Usage: "release file",
-		},
-	},
-}
-
-func build(c *cli.Context) error {
-	// build image from source code.
-
-	return nil
 }
