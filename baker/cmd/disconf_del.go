@@ -1,8 +1,15 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
+
+	"github.com/Dataman-Cloud/baker/client"
 )
 
 var DisConfDelCmd = cli.Command{
@@ -22,6 +29,42 @@ var DisConfDelCmd = cli.Command{
 }
 
 func disConfDel(c *cli.Context) error {
-	logrus.Infof("delete config files in the path: %s", c.String("path"))
+	path := c.String("path")
+	if path == "" {
+		logrus.Fatal("no path in input")
+		return errors.New("no path in input")
+	}
+
+	// login baker server
+	baseUri := c.GlobalString("server")
+	client, err := client.NewHttpClient(baseUri, c.GlobalString("username"), c.GlobalString("password"))
+	if err != nil {
+		logrus.Fatalf("erro login baker server: %s", err)
+		return err
+	}
+
+	// disconf del
+	logrus.Infof("delete config files in the path: %s", path)
+	uri := "http://" + baseUri + "/api/disconf/delete?path=" + path
+	req, err := http.NewRequest("DELETE", uri, nil)
+	if err != nil {
+		logrus.Fatalf("error new disconf delete request: %s", err)
+		return err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.Token))
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		logrus.Fatalf("error disconf delete request: %s", err)
+		return err
+	}
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Fatalf("error read response in disconf delete: %s", err)
+		return err
+	}
+	logrus.Info(resp.Status)
+	logrus.Infof(string(respBody))
 	return nil
 }

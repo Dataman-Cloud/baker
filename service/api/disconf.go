@@ -95,7 +95,6 @@ func DisConfPull(c *gin.Context) {
 	//We read 512 bytes from the file already so we reset the offset back to 0
 	openFile.Seek(0, 0)
 	io.Copy(writer, openFile) //'Copy' the file to the client
-	return
 }
 
 // DisConfList is a endpoint that
@@ -118,7 +117,16 @@ func DisConfList(c *gin.Context) {
 // DisConfDel is a endpoint that
 // delete config files in disconfig.
 func DisConfDel(c *gin.Context) {
-
+	path := baseDir + "" + c.Query("path")
+	err := os.RemoveAll(path)
+	if err != nil {
+		logrus.Error("error remove all files in the path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	c.JSON(http.StatusOK, struct {
+		Code, Message string
+	}{"0", "disconf del is ok."})
 }
 
 func zipit(source, target string) error {
