@@ -42,5 +42,16 @@ func Load(middleware ...gin.HandlerFunc) http.Handler {
 		disconf.GET("/search", api.DisConfList)
 		disconf.DELETE("/delete", api.DisConfDel)
 	}
+
+	buildpack := e.Group("/api/buildpack")
+	{
+		buildpack.Use(session.MustAdmin())
+		buildpack.POST("/import", api.BuildpackImport)
+		buildpack.GET("/search", api.BuildpackList)
+		buildpack.DELETE("/delete", api.BuildpackDel)
+		buildpack.POST("/dockerfile/push", api.BuildpackDockerfilePush)
+		buildpack.GET("/dockerfile/pull", api.BuildpackDockerfilePull)
+		buildpack.POST("/image/push", api.BuildpackImagePush)
+	}
 	return e
 }
