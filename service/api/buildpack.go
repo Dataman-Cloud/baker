@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/Sirupsen/logrus"
+	_ "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +19,7 @@ func BuildpackList(c *gin.Context) {
 
 // BuildpackDel is a endpoint that
 // delete app files to baker fileserver.
-func BuildpackDelete(c *gin.Context) {
+func BuildpackDel(c *gin.Context) {
 
 }
 
