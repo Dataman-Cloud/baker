@@ -1,11 +1,8 @@
 package cmd
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"io/ioutil"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,6 +14,7 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/Dataman-Cloud/baker/client"
+	"github.com/Dataman-Cloud/baker/util"
 )
 
 var DisConfPushCmd = cli.Command{
@@ -97,9 +95,9 @@ func disConfPush(c *cli.Context) error {
 			"version":        strconv.FormatInt(time.Now().Unix(), 10),
 			"container-path": fileparam.ContainerPath,
 		}
-		req, err := fileUploadRequest("http://"+baseUri+"/api/disconf/push", client.Token, "uploadfile", path, extraParams)
+		req, err := util.FileUploadRequest("http://"+baseUri+"/api/disconf/push", client.Token, "uploadfile", path, extraParams)
 		if err != nil {
-			logrus.Fatalf("error new disconf push request: %s ", err)
+			logrus.Fatalf("error create disconf push request: %s ", err)
 			return err
 		}
 		httpClient := &http.Client{}
@@ -118,44 +116,4 @@ func disConfPush(c *cli.Context) error {
 		logrus.Infof(string(respBody))
 	}
 	return nil
-}
-
-// fileUploadRequest is create a file upload http request with optional extra params
-func fileUploadRequest(uri string, token, uploadParamName, uploadFilePath string, extraParams map[string]string) (*http.Request, error) {
-	file, err := os.Open(uploadFilePath)
-	if err != nil {
-		return nil, err
-	}
-	fileContent, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	fi, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-	file.Close()
-
-	body := new(bytes.Buffer)
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile(uploadParamName, fi.Name())
-	if err != nil {
-		return nil, err
-	}
-	part.Write(fileContent)
-
-	for key, val := range extraParams {
-		_ = writer.WriteField(key, val)
-	}
-	err = writer.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	contentType := writer.FormDataContentType()
-
-	req, err := http.NewRequest("POST", uri, body)
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("Content-Type", contentType)
-	return req, err
 }
