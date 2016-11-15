@@ -92,7 +92,7 @@ func disConfPush(c *cli.Context) error {
 		extraParams := map[string]string{
 			"app-name":       appName,
 			"label":          label,
-			"version":        strconv.FormatInt(time.Now().Unix(), 10),
+			"timestamp":      strconv.FormatInt(time.Now().Unix(), 10),
 			"container-path": fileparam.ContainerPath,
 		}
 		req, err := util.FileUploadRequest("http://"+baseUri+"/api/disconf/push", client.Token, "uploadfile", path, extraParams)
