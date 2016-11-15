@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/Dataman-Cloud/baker/util"
 	"github.com/Sirupsen/logrus"
@@ -121,7 +122,36 @@ func BuildpackDel(c *gin.Context) {
 // BuildpackDockerfilePull is a endpoint that
 // pull dockerfile from baker fileserver.
 func BuildpackDockerfilePull(c *gin.Context) {
+	writer := c.Writer
+	appName := baseDir + "/appfiles/" + c.Query("name") + "/Dockerfile"
+	// write file content to response body
+	openFile, err := os.Open(appName)
+	if err != nil {
+		logrus.Error("error open app dockerfile.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	//Get the Content-Type of the file
+	//Create a buffer to store the header of the file in
+	fileHeader := make([]byte, 512)
+	//Copy the headers into the FileHeader buffer
+	openFile.Read(fileHeader)
+	//Get content type of file
+	fileContentType := http.DetectContentType(fileHeader)
 
+	//Get the file size
+	fileStat, _ := openFile.Stat()                     //Get info from file
+	fileSize := strconv.FormatInt(fileStat.Size(), 10) //Get file size as a string
+
+	//Send the headers
+	writer.Header().Set("Content-Disposition", "attachment; filename="+appName)
+	writer.Header().Set("Content-Type", fileContentType)
+	writer.Header().Set("Content-Length", fileSize)
+
+	//Send the file
+	//We read 512 bytes from the file already so we reset the offset back to 0
+	openFile.Seek(0, 0)
+	io.Copy(writer, openFile) //'Copy' the file to the client
 }
 
 // BuildpackDockerfilePush is a endpoint that

@@ -1,21 +1,20 @@
 package api
 
 import (
-	"archive/zip"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Dataman-Cloud/baker/util"
 )
 
 const (
-	baseDir = "/fileserver"
-	tmpDir  = "/tmp"
+	disconfDir = baseDir + "/disconf"
 )
 
 // DisConfPush is a endpoint that
@@ -25,7 +24,7 @@ func DisConfPush(c *gin.Context) {
 	label := c.Request.FormValue("label")
 	timestamp := c.Request.FormValue("timestamp")
 	containerPath := c.Request.FormValue("container-path")
-	path := baseDir + "/disconf/" + appName + "/" + label + "/" + timestamp + "" + containerPath
+	path := disconfDir + "/" + appName + "/" + label + "/" + timestamp + "" + containerPath
 
 	c.Request.ParseMultipartForm(32 << 20)
 	file, handler, err := c.Request.FormFile("uploadfile")
@@ -58,9 +57,9 @@ func DisConfPush(c *gin.Context) {
 // pull config files in disconfig.
 func DisConfPull(c *gin.Context) {
 	writer := c.Writer
-	path := baseDir + "" + c.Query("path")
+	path := disconfDir + "" + c.Query("path")
 	zipfile := tmpDir + "/" + "props.zip"
-	err := zipit(path, zipfile)
+	err := util.Zipit(path, zipfile)
 	if err != nil {
 		logrus.Error("error zip prop file. ")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -99,7 +98,7 @@ func DisConfPull(c *gin.Context) {
 // DisConfList is a endpoint that
 // list config files in disconfig.
 func DisConfList(c *gin.Context) {
-	searchDir := baseDir + "" + c.Query("path")
+	searchDir := disconfDir + "" + c.Query("path")
 	fileList := []string{}
 	err := filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
 		fileList = append(fileList, path)
@@ -118,7 +117,7 @@ func DisConfList(c *gin.Context) {
 // DisConfDel is a endpoint that
 // delete config files in disconfig.
 func DisConfDel(c *gin.Context) {
-	path := baseDir + "" + c.Query("path")
+	path := disconfDir + "" + c.Query("path")
 	err := os.RemoveAll(path)
 	if err != nil {
 		logrus.Error("error remove all files in the path.")
@@ -128,65 +127,4 @@ func DisConfDel(c *gin.Context) {
 	c.JSON(http.StatusOK, struct {
 		Message string
 	}{"disconf del is ok."})
-}
-
-func zipit(source, target string) error {
-	zipfile, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	defer zipfile.Close()
-
-	archive := zip.NewWriter(zipfile)
-	defer archive.Close()
-
-	info, err := os.Stat(source)
-	if err != nil {
-		return nil
-	}
-
-	var baseDir string
-	if info.IsDir() {
-		baseDir = filepath.Base(source)
-	}
-
-	filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		header, err := zip.FileInfoHeader(info)
-		if err != nil {
-			return err
-		}
-
-		if baseDir != "" {
-			header.Name = filepath.Join(baseDir, strings.TrimPrefix(path, source))
-		}
-
-		if info.IsDir() {
-			header.Name += "/"
-		} else {
-			header.Method = zip.Deflate
-		}
-
-		writer, err := archive.CreateHeader(header)
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		_, err = io.Copy(writer, file)
-		return err
-	})
-
-	return err
 }

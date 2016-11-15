@@ -14,6 +14,11 @@ import (
 	"github.com/Dataman-Cloud/baker/service/shared/token"
 )
 
+const (
+	baseDir = "/fileserver"
+	tmpDir  = "/tmp"
+)
+
 // ShowLogin is a endpoint that redirects to
 // initiliaze the oauth flow
 func ShowLogin(c *gin.Context) {
