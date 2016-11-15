@@ -12,5 +12,6 @@ var DisConfCmd = cli.Command{
 		DisConfPullCmd,
 		DisConfListCmd,
 		DisConfDelCmd,
+		DisConfUnzipCmd,
 	},
 }

@@ -6,6 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/Dataman-Cloud/baker/client"
 	"github.com/Dataman-Cloud/baker/util"
@@ -32,7 +35,7 @@ var BuildpackImportCmd = cli.Command{
 		},
 		cli.StringFlag{
 			Name:  "binaryFile",
-			Usage: "binary file",
+			Usage: "binary file(zip file)",
 		},
 		cli.StringFlag{
 			Name:  "binaryPath",
@@ -53,24 +56,29 @@ func buildpackImport(c *cli.Context) error {
 	// validation
 	appName := c.String("name")
 	if appName == "" {
-		logrus.Fatal("no name in input")
-		return errors.New("no name in input")
+		logrus.Fatal("no name in input.")
+		return errors.New("no name in input.")
 	}
 	baseImage := c.String("from")
 	if baseImage == "" {
-		logrus.Fatal("no from in input")
-		return errors.New("no from in input")
+		logrus.Fatal("no from in input.")
+		return errors.New("no from in input.")
 	}
 	binaryFile := c.String("binaryFile")
 	if binaryFile == "" {
-		logrus.Fatal("no binaryFile in input")
-		return errors.New("no binaryFile in input")
+		logrus.Fatal("no binaryFile in input.")
+		return errors.New("no binaryFile in input.")
+	}
+	if strings.Index(binaryFile, ".zip") < 0 {
+		logrus.Fatal("binaryFile is not zip file.")
+		return errors.New("binaryFile is not zip file.")
 	}
 	binaryPath := c.String("binaryPath")
 	if binaryPath == "" {
-		logrus.Fatal("no binaryPath in input")
-		return errors.New("no binaryPath in input")
+		logrus.Fatal("no binaryPath in input.")
+		return errors.New("no binaryPath in input.")
 	}
+
 	startCmd := c.String("startCmd")
 	startupFile := c.String("startupFile")
 
@@ -92,7 +100,7 @@ func buildpackImport(c *cli.Context) error {
 	defer zipw.Close()
 
 	//buf := new(bytes.Buffer)
-	//	w := zip.NewWriter(buf) // Create a new zip archive.
+	//w := zip.NewWriter(buf) // Create a new zip archive.
 	w := zip.NewWriter(zipw)
 	// Add some files to the archive.
 	var files []string
@@ -125,10 +133,13 @@ func buildpackImport(c *cli.Context) error {
 	}
 
 	extraParams := map[string]string{
-		"app-name":    appName,
-		"base-image":  baseImage,
-		"binary-path": binaryPath,
-		"start-cmd":   startCmd,
+		"app-name":     appName,
+		"base-image":   baseImage,
+		"binary-file":  binaryFile,
+		"binary-path":  binaryPath,
+		"start-cmd":    startCmd,
+		"startup-file": startupFile,
+		"timestamp":    strconv.FormatInt(time.Now().Unix(), 10),
 	}
 	req, err := util.FileUploadRequest("http://"+baseUri+"/api/buildpack/import", client.Token, "uploadfile", zipfile, extraParams)
 	if err != nil {

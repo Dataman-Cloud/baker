@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	baseDir = "/fileserver/disconf"
+	baseDir = "/fileserver"
 	tmpDir  = "/tmp"
 )
 
@@ -23,9 +23,9 @@ const (
 func DisConfPush(c *gin.Context) {
 	appName := c.Request.FormValue("app-name")
 	label := c.Request.FormValue("label")
-	version := c.Request.FormValue("version")
+	timestamp := c.Request.FormValue("timestamp")
 	containerPath := c.Request.FormValue("container-path")
-	path := baseDir + "/" + appName + "/" + label + "/" + version + "" + containerPath
+	path := baseDir + "/disconf/" + appName + "/" + label + "/" + timestamp + "" + containerPath
 
 	c.Request.ParseMultipartForm(32 << 20)
 	file, handler, err := c.Request.FormFile("uploadfile")
