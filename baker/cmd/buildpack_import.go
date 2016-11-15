@@ -16,6 +16,10 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	appFile = "app.zip"
+)
+
 var BuildpackImportCmd = cli.Command{
 	Name:  "import",
 	Usage: "import appfiles into baker fileserver.",
@@ -49,6 +53,11 @@ var BuildpackImportCmd = cli.Command{
 			Name:  "startCmd",
 			Usage: "startup command",
 		},
+		cli.BoolFlag{
+			Name:   "disconf",
+			Usage:  "disconf switch on-off",
+			Hidden: true,
+		},
 	},
 }
 
@@ -81,6 +90,7 @@ func buildpackImport(c *cli.Context) error {
 
 	startCmd := c.String("startCmd")
 	startupFile := c.String("startupFile")
+	disconf := c.Bool("disconf")
 
 	// login baker server
 	baseUri := c.GlobalString("server")
@@ -91,8 +101,7 @@ func buildpackImport(c *cli.Context) error {
 	}
 
 	// upload appfiles to baker server.
-	zipfile := "app.zip"
-	zipw, err := os.Create(zipfile)
+	zipw, err := os.Create(appFile)
 	if err != nil {
 		logrus.Fatalf("error create zip file.")
 		return err
@@ -133,15 +142,16 @@ func buildpackImport(c *cli.Context) error {
 	}
 
 	extraParams := map[string]string{
-		"app-name":     appName,
-		"base-image":   baseImage,
-		"binary-file":  binaryFile,
-		"binary-path":  binaryPath,
-		"start-cmd":    startCmd,
-		"startup-file": startupFile,
-		"timestamp":    strconv.FormatInt(time.Now().Unix(), 10),
+		"app-name":             appName,
+		"base-image":           baseImage,
+		"binary-file":          binaryFile,
+		"binary-path":          binaryPath,
+		"start-cmd":            startCmd,
+		"startup-file":         startupFile,
+		"disconf-switch-onoff": strconv.FormatBool(disconf),
+		"timestamp":            strconv.FormatInt(time.Now().Unix(), 10),
 	}
-	req, err := util.FileUploadRequest("http://"+baseUri+"/api/buildpack/import", client.Token, "uploadfile", zipfile, extraParams)
+	req, err := util.FileUploadRequest("http://"+baseUri+"/api/buildpack/import", client.Token, "uploadfile", appFile, extraParams)
 	if err != nil {
 		logrus.Fatalf("error create buildpack import request: %s ", err)
 		return err

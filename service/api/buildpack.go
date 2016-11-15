@@ -28,6 +28,7 @@ func BuildpackImport(c *gin.Context) {
 	startCmd := c.Request.FormValue("start-cmd")
 	startupFile := c.Request.FormValue("startup-file")
 	timestamp := c.Request.FormValue("timestamp")
+	disconf, _ := strconv.ParseBool(c.Request.FormValue("disconf-switch-onoff"))
 
 	// parse upload file.
 	c.Request.ParseMultipartForm(32 << 20)
@@ -55,7 +56,6 @@ func BuildpackImport(c *gin.Context) {
 	}
 	defer f.Close()
 	io.Copy(f, file)
-
 	// unzip upload file in desc dir.
 	err = util.Unzip(desc+"/"+handler.Filename, desc)
 	if err != nil {
@@ -63,7 +63,13 @@ func BuildpackImport(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-
+	// remove.
+	err = os.Remove(desc + "/" + handler.Filename)
+	if err != nil {
+		logrus.Error("error remove app.zip in the path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 	// dockerfile
 	dockerfilePath := appfilesDir + "/" + appName + "/Dockerfile"
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
@@ -75,12 +81,14 @@ func BuildpackImport(c *gin.Context) {
 			dockerfile += "COPY " + startupFile + " /" + "\n\n"
 		}
 		// add bakercli pull properties file from disconf depending on envVars.
-		bakercli := baseDir + "/bin/baker"
-		dockerfile += "# DOWNLOAD PROPERTY FILES FROM DISCONF IN BAKER SERVER\n" +
-			"COPY  " + bakercli + " /\n" +
-			"RUN ./baker disconf pull --path=$CONFIG_DIR && \n" +
-			"./baker disconf unzip --file=props.zip --path=/" + appName + " &&\n" +
-			"mv $CONFIG_DIR /\n"
+		if disconf == true {
+			bakercli := baseDir + "/bin/baker"
+			dockerfile += "# DOWNLOAD PROPERTY FILES FROM DISCONF IN BAKER SERVER\n" +
+				"COPY  " + bakercli + " /\n" +
+				"RUN ./baker disconf pull --path=$CONFIG_DIR && \n" +
+				"./baker disconf unzip --file=props.zip --path=/" + appName + " &&\n" +
+				"mv $CONFIG_DIR /\n"
+		}
 		if startCmd != "" {
 			dockerfile += "CMD [\"" + startCmd + "\"]"
 		}
@@ -194,5 +202,24 @@ func BuildpackDockerfilePush(c *gin.Context) {
 // BuildpackImagePush is a endpoint that
 // push docker image to docker registry.
 func BuildpackImagePush(c *gin.Context) {
+	//appName := c.Query("name")
+	timestamp := c.Query("timestamp")
+	dockerfile := appfilesDir + "/" + "Dockerfile"
+	path := appfilesDir + "/" + timestamp
+	// copy Dockerfile to app timestamp directory.
+	err := util.CopyFile(dockerfile, path+"/Dockerfile")
+	if err != nil {
+		logrus.Fatal("error copy dockerfile to the path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	// docker build and push docker image to registry.
 
+	// remove.
+	err = os.Remove(path + "/Dockerfile")
+	if err != nil {
+		logrus.Error("error remove Dockerfile in the path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 }
