@@ -13,6 +13,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	appfilesDir = baseDir + "/appfiles"
+)
+
 // BuildpackImport is a endpoint that
 // import app files to baker fileserver.
 func BuildpackImport(c *gin.Context) {
@@ -36,7 +40,7 @@ func BuildpackImport(c *gin.Context) {
 	defer file.Close()
 
 	// save upload file to desc dir.
-	desc := baseDir + "/appfiles/" + appName + "/" + timestamp
+	desc := appfilesDir + "/" + appName + "/" + timestamp
 	err = os.MkdirAll(desc, 0777)
 	if err != nil {
 		logrus.Error("error create desc file directory.")
@@ -61,7 +65,7 @@ func BuildpackImport(c *gin.Context) {
 	}
 
 	// dockerfile
-	dockerfilePath := baseDir + "/appfiles/" + appName + "/Dockerfile"
+	dockerfilePath := appfilesDir + "/" + appName + "/Dockerfile"
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 		// create Dockerfile for the app.
 		dockerfile := "FROM " + baseImage + "\n\n" +
@@ -88,7 +92,7 @@ func BuildpackImport(c *gin.Context) {
 // BuildpackList is a endpoint that
 // list app files to baker fileserver.
 func BuildpackList(c *gin.Context) {
-	searchDir := baseDir + "/appfiles" + c.Query("path")
+	searchDir := appfilesDir + "" + c.Query("path")
 	fileList := []string{}
 	err := filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
 		fileList = append(fileList, path)
@@ -107,7 +111,7 @@ func BuildpackList(c *gin.Context) {
 // BuildpackDel is a endpoint that
 // delete app files to baker fileserver.
 func BuildpackDel(c *gin.Context) {
-	path := baseDir + "/appfiles" + c.Query("path")
+	path := appfilesDir + "" + c.Query("path")
 	err := os.RemoveAll(path)
 	if err != nil {
 		logrus.Error("error remove files in the path.")
@@ -123,7 +127,7 @@ func BuildpackDel(c *gin.Context) {
 // pull dockerfile from baker fileserver.
 func BuildpackDockerfilePull(c *gin.Context) {
 	writer := c.Writer
-	appName := baseDir + "/appfiles/" + c.Query("name") + "/Dockerfile"
+	appName := appfilesDir + "/" + c.Query("name") + "/Dockerfile"
 	// write file content to response body
 	openFile, err := os.Open(appName)
 	if err != nil {
@@ -157,7 +161,34 @@ func BuildpackDockerfilePull(c *gin.Context) {
 // BuildpackDockerfilePush is a endpoint that
 // push dockerfile to baker fileserver.
 func BuildpackDockerfilePush(c *gin.Context) {
+	appName := c.Request.FormValue("app-name")
+	path := appfilesDir + "/" + appName
 
+	c.Request.ParseMultipartForm(32 << 20)
+	file, handler, err := c.Request.FormFile("uploadfile")
+	if err != nil {
+		logrus.Error("error get upload file.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	defer file.Close()
+	err = os.MkdirAll(path, 0777)
+	if err != nil {
+		logrus.Error("error create upload file directory.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	f, err := os.OpenFile(path+"/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0777)
+	if err != nil {
+		logrus.Error("error create upload file. ")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	defer f.Close()
+	io.Copy(f, file)
+	c.JSON(http.StatusOK, struct {
+		Filepath string
+	}{path})
 }
 
 // BuildpackImagePush is a endpoint that
