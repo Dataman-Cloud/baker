@@ -1,6 +1,6 @@
 package model
 
-// User type.
+// StaticUser type.
 type StaticUser struct {
 	// Username is the username for this user.
 	Username string `json:"username"`
