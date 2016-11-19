@@ -9,8 +9,9 @@ import (
 
 // Config type.
 type Config struct {
-	Server ServerConfig         `yaml:"server"`
-	Users  map[string]Authorize `yaml:"users"`
+	Server         ServerConfig         `yaml:"server"`
+	Users          map[string]Authorize `yaml:"users"`
+	DockerRegistry DockerRegistry       `yaml:"dockerRegistry"`
 }
 
 // ServerConfig type.
@@ -21,6 +22,15 @@ type ServerConfig struct {
 // Password type.
 type Authorize struct {
 	Password string `yaml:"password"`
+}
+
+// dockerRegistry type.
+type DockerRegistry struct {
+	Address  string `yaml:"address"`
+	Repo     string `yaml:"repo"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	Email    string `yaml:"email"`
 }
 
 func validate(c *Config) error {

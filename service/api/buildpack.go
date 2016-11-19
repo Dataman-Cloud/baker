@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/Dataman-Cloud/baker/config"
+	"github.com/Dataman-Cloud/baker/external/docker"
 	"github.com/Dataman-Cloud/baker/util"
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
@@ -202,7 +204,7 @@ func BuildpackDockerfilePush(c *gin.Context) {
 // BuildpackImagePush is a endpoint that
 // push docker image to docker registry.
 func BuildpackImagePush(c *gin.Context) {
-	//appName := c.Query("name")
+	appName := c.Query("name")
 	timestamp := c.Query("timestamp")
 	dockerfile := appfilesDir + "/" + "Dockerfile"
 	path := appfilesDir + "/" + timestamp
@@ -214,12 +216,39 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	// docker build and push docker image to registry.
+	config := c.MustGet("config").(config.Config)
+	registry := config.DockerRegistry.Address
+	repo := config.DockerRegistry.Repo
 
-	// remove.
-	err = os.Remove(path + "/Dockerfile")
+	client := docker.NewDockerClient()
+	imageName := registry + "/" + repo + "/" + appName + ":" + timestamp
+	err = client.DockerBuild(imageName, ".", "Dockerfile")
 	if err != nil {
-		logrus.Error("error remove Dockerfile in the path.")
+		logrus.Fatal("error build image from dockerfile.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	err = client.DockerLogin(config.DockerRegistry.Username, config.DockerRegistry.Password,
+		config.DockerRegistry.Email, registry)
+	if err != nil {
+		logrus.Fatal("error docker login to the registry.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	err = client.DockerPush(imageName, registry)
+	if err != nil {
+		logrus.Fatal("error docker push image to the registry.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	// remove.
+	defer func() {
+		err = os.Remove(path + "/Dockerfile")
+		if err != nil {
+			logrus.Error("error remove Dockerfile in the path.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+	}()
 }
