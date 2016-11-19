@@ -221,17 +221,17 @@ func BuildpackImagePush(c *gin.Context) {
 	repo := config.DockerRegistry.Repo
 
 	client := docker.NewDockerClient()
-	imageName := registry + "/" + repo + "/" + appName + ":" + timestamp
-	err = client.DockerBuild(imageName, ".", "Dockerfile")
-	if err != nil {
-		logrus.Fatal("error build image from dockerfile.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
 	err = client.DockerLogin(config.DockerRegistry.Username, config.DockerRegistry.Password,
 		config.DockerRegistry.Email, registry)
 	if err != nil {
 		logrus.Fatal("error docker login to the registry.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	imageName := registry + "/" + repo + "/" + appName + ":" + timestamp
+	err = client.DockerBuild(imageName, ".", "Dockerfile")
+	if err != nil {
+		logrus.Fatal("error build image from dockerfile.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}

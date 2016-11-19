@@ -39,7 +39,7 @@ func main() {
 	app.Commands = []cli.Command{
 		cmd.ServerCmd,    // baker server.
 		cmd.DisConfCmd,   // baker disconf.
-		cmd.BuildpackCmd, // baker buildpack from app's binaryfile.
+		cmd.BuildpackCmd, // baker buildpack from app's binary file.
 		cmd.CanaryCmd,    // rolling upgrade.
 		cmd.RollbackCmd,  // roll back.
 	}
