@@ -7,7 +7,7 @@ import (
 )
 
 type Cache struct {
-	Users map[string]*model.User
+	Users map[string]*model.User // cache users in memory.
 }
 
 func NewCache() Cache {

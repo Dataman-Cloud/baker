@@ -11,22 +11,22 @@ import (
 	"github.com/fsouza/go-dockerclient"
 )
 
-type DockerEngine struct {
+type DockerClient struct {
 	Client *docker.Client
 }
 
-func NewDockerClient() *DockerEngine {
+func NewDockerClient() *DockerClient {
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	return &DockerEngine{
+	return &DockerClient{
 		Client: client,
 	}
 }
 
 // Dockerbuild is a function to create docker image from Dockerfile.
-func (c *DockerEngine) DockerBuild(name, context, dockerfile string) error {
+func (c *DockerClient) DockerBuild(name, context, dockerfile string) error {
 	auth := loadRegistryAuthFile()
 	client := c.Client
 	err := client.BuildImage(docker.BuildImageOptions{
@@ -43,7 +43,7 @@ func (c *DockerEngine) DockerBuild(name, context, dockerfile string) error {
 }
 
 // DockerLogin is a function to docker login to the regitstry.
-func (c *DockerEngine) DockerLogin(username, password, email, registry string) error {
+func (c *DockerClient) DockerLogin(username, password, email, registry string) error {
 	err := generateRegistryAuthFile(username, password, email, registry)
 	if err != nil {
 		logrus.Fatal(err)
@@ -52,7 +52,7 @@ func (c *DockerEngine) DockerLogin(username, password, email, registry string) e
 }
 
 // DockerPush is a function to docker push image to the registry.
-func (c *DockerEngine) DockerPush(image, registry string) error {
+func (c *DockerClient) DockerPush(image, registry string) error {
 	dockerAuthConfiguration := getDockerAuthConfigurationFromFile(registry)
 	client := c.Client
 	err := client.PushImage(docker.PushImageOptions{
