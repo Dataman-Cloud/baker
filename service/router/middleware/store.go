@@ -21,9 +21,9 @@ func Store(cli *cli.Context) gin.HandlerFunc {
 
 // helper function to create the Store from the CLI context config-path.
 func setupStaticUsersStore(c *gin.Context) store.Store {
-	config := c.MustGet("config").(config.Config)
+	config := c.MustGet("config").(*config.Config)
 	// setup Store
-	if config.Users != nil {
+	if &config.Users != nil {
 		staticUsers := make(map[string]*model.StaticUser)
 		for k, v := range config.Users {
 			staticUsers[k] = &model.StaticUser{
