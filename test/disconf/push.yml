@@ -1,6 +1,0 @@
-uploads:
-  1.properties:
-    container_path: "/etc"
-  2.properties:
-    container_path: "/etc"
-
