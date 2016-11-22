@@ -244,7 +244,7 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	// copy run.sh to app timestamp directory.
-	err = util.CopyFile(baseDir+"/bin/run.sh", path+"/run.sh")
+	err = util.CopyFile(appfileDir+"/"+"run.sh", path+"/run.sh")
 	if err != nil {
 		logrus.Fatal("error copy run.sh to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
