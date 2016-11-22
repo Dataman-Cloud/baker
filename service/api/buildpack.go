@@ -77,23 +77,50 @@ func BuildpackImport(c *gin.Context) {
 	dockerfilePath := appfilesDir + "/" + appName + "/Dockerfile"
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 		// create Dockerfile for the app.
-		dockerfile := "FROM " + baseImage + "\n\n" +
-			"MAINTAIN admin@dataman-inc.com" + "\n\n" +
-			"ADD " + binaryFile + " " + binaryPath + "\n"
+		dockerfile := "FROM " + baseImage + "\n" +
+			"MAINTAINER admin@dataman-inc.com" + "\n\n" +
+			"#####ADD BINARY FILE########\n" +
+			"ADD " + binaryFile + " " + binaryPath + "\n\n"
 		if startupFile != "" {
-			dockerfile += "COPY " + startupFile + " /" + "\n\n"
+			dockerfile += "#####COPY STARTUP FILE########\n" +
+				"COPY " + startupFile + " /" + "\n\n"
 		}
-		// add bakercli pull properties file from disconf depending on envVars.
-		if disconf == true {
-			bakercli := baseDir + "/bin/baker"
-			dockerfile += "# DOWNLOAD PROPERTY FILES FROM DISCONF IN BAKER SERVER\n" +
-				"COPY  " + bakercli + " /\n" +
-				"RUN ./baker disconf pull --path=$CONFIG_DIR && \n" +
-				"./baker disconf unzip --file=props.zip --path=/" + appName + " &&\n" +
-				"mv $CONFIG_DIR /\n"
+		// download config files.
+		if disconf {
+			dockerfile += "#####DOWNLOAD CONFIG FILES########\n" +
+				"COPY run.sh /\n"
+			if startCmd != "" {
+				// copy run.sh to app timestamp directory.
+				err = util.CopyFile(baseDir+"/bin/run.sh", appfilesDir+"/"+appName+"/run.sh")
+				if err != nil {
+					logrus.Fatal("error copy run.sh to the path.")
+					c.AbortWithError(http.StatusBadRequest, err)
+					return
+				}
+				f, err := os.OpenFile(appfilesDir+"/"+appName+"/run.sh", os.O_APPEND|os.O_WRONLY, 0777)
+				if err != nil {
+					logrus.Error("error open run.sh")
+					c.AbortWithError(http.StatusBadRequest, err)
+					return
+				}
+				defer f.Close()
+				if _, err = f.WriteString(startCmd); err != nil {
+					logrus.Error("error write startCmd string to run.sh")
+					c.AbortWithError(http.StatusBadRequest, err)
+					return
+				}
+			}
+			dockerfile += "ENTRYPOINT run.sh && /bin/bash"
 		}
+
+		if !disconf {
+			if startCmd != "" {
+				dockerfile += "ENTRYPOINT " + startCmd + "&& /bin/bash"
+			}
+		}
+
 		if startCmd != "" {
-			dockerfile += "CMD [\"" + startCmd + "\"]"
+			dockerfile += "ENTRYPOINT run.sh && /bin/bash"
 		}
 		ioutil.WriteFile(dockerfilePath, []byte(dockerfile), 0777)
 	}
@@ -209,8 +236,22 @@ func BuildpackImagePush(c *gin.Context) {
 	timestamp := c.Query("timestamp")
 	dockerfile := appfilesDir + "/" + "Dockerfile"
 	path := appfilesDir + "/" + timestamp
+	// copy baker to app timestamp directory.
+	err := util.CopyFile(baseDir+"/bin/baker", path+"/baker")
+	if err != nil {
+		logrus.Fatal("error copy baker to the path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	// copy run.sh to app timestamp directory.
+	err = util.CopyFile(baseDir+"/bin/run.sh", path+"/run.sh")
+	if err != nil {
+		logrus.Fatal("error copy run.sh to the path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 	// copy Dockerfile to app timestamp directory.
-	err := util.CopyFile(dockerfile, path+"/Dockerfile")
+	err = util.CopyFile(dockerfile, path+"/Dockerfile")
 	if err != nil {
 		logrus.Fatal("error copy dockerfile to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -231,6 +272,18 @@ func BuildpackImagePush(c *gin.Context) {
 
 	// remove.
 	defer func() {
+		err = os.Remove(path + "/baker")
+		if err != nil {
+			logrus.Error("error remove baker in the path.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		err = os.Remove(path + "/run.sh")
+		if err != nil {
+			logrus.Error("error remove run.sh in the path.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
 		err = os.Remove(path + "/Dockerfile")
 		if err != nil {
 			logrus.Error("error remove Dockerfile in the path.")
