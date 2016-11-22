@@ -1,3 +1,3 @@
 #!/bin/bash
 
-../../bin/baker buildpack dockerfile push --name=app
+../../bin/baker -s 192.168.1.21:8000 buildpack dockerfile push --name=app

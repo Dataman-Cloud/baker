@@ -54,9 +54,8 @@ var BuildpackImportCmd = cli.Command{
 			Usage: "startup command",
 		},
 		cli.BoolFlag{
-			Name:   "disconf",
-			Usage:  "disconf switch on-off",
-			Hidden: true,
+			Name:  "disconf",
+			Usage: "disconf switch on-off",
 		},
 	},
 }
@@ -87,7 +86,6 @@ func buildpackImport(c *cli.Context) error {
 		logrus.Fatal("no binaryPath in input.")
 		return errors.New("no binaryPath in input.")
 	}
-
 	startCmd := c.String("startCmd")
 	startupFile := c.String("startupFile")
 	disconf := c.Bool("disconf")
@@ -106,7 +104,14 @@ func buildpackImport(c *cli.Context) error {
 		logrus.Fatalf("error create zip file.")
 		return err
 	}
-	defer zipw.Close()
+	defer func() {
+		// remove.
+		err = os.Remove(appFile)
+		if err != nil {
+			logrus.Error("error remove app.zip in the path.")
+			return
+		}
+	}()
 
 	//buf := new(bytes.Buffer)
 	//w := zip.NewWriter(buf) // Create a new zip archive.
