@@ -1,7 +1,7 @@
 # This is a config file for baker.
 
 server: # baker server settings.
-  addr: "127.0.0.1:8000" # address to listen on.
+  address: "127.0.0.1:8000" # address to listen on.
 
 users: # static users.
   # Password is specified as a BCrypt hash. Use htpasswd -B to generate.
@@ -10,9 +10,15 @@ users: # static users.
   "test":
     password: "$2y$05$WuwBasGDAgr.QCbGIjKJaep4dhxeai9gNZdmBnQXqpKly57oNutya"  # 123
 
- dockerRegistry: # docker registry setting.
+ dockerregistry: # docker registry setting.
     address: "http://demoharbor.dataman-inc.net"
     repo: "library"
     username: "csdsystem"
     password: "Dataman@1234"
     email: "csd-system@dataman-inc.com"
+
+ workpool: # worker pool setting.
+   "imagepush":
+     size: 1    
+
+

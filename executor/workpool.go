@@ -1,134 +1,147 @@
 package executor
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+)
 
-// Gorouting instance which can accept client jobs
-type worker struct {
-	workerPool chan *worker
-	jobChannel chan Job
-	stop       chan bool
+const waitTimeout = 5 * time.Second
+
+type WorkPool struct {
+	workQueue chan func()
+	stopping  chan struct{}
+	stopped   int32
+
+	mutex       sync.Mutex
+	maxWorkers  int
+	numWorkers  int
+	idleWorkers int
 }
 
-func newWorker(pool chan *worker) *worker {
-	return &worker{
-		workerPool: pool,
-		jobChannel: make(chan Job),
-		stop:       make(chan bool),
+func NewWorkPool(maxWorkers int) (*WorkPool, error) {
+	if maxWorkers < 1 {
+		return nil, fmt.Errorf("must provide positive maxWorkers; provided %d", maxWorkers)
+	}
+
+	return newWorkPoolWithPending(maxWorkers, 0), nil
+}
+
+func newWorkPoolWithPending(maxWorkers, pending int) *WorkPool {
+	return &WorkPool{
+		workQueue:  make(chan func(), maxWorkers+pending),
+		stopping:   make(chan struct{}),
+		maxWorkers: maxWorkers,
 	}
 }
 
-func (w *worker) start() {
-	go func() {
-		var job Job
-		for {
-			// worker free, add it to pool
-			w.workerPool <- w
+func (w *WorkPool) Submit(work func()) {
+	if atomic.LoadInt32(&w.stopped) == 1 {
+		return
+	}
 
-			select {
-			case job = <-w.jobChannel:
-				job()
-			case stop := <-w.stop:
-				if stop {
-					w.stop <- true
-					return
-				}
-			}
+	select {
+	case w.workQueue <- work:
+		if atomic.LoadInt32(&w.stopped) == 1 {
+			w.drain()
+		} else {
+			w.addWorker()
 		}
-	}()
+	case <-w.stopping:
+	}
 }
 
-// Accepts jobs from clients, and waits for first free worker to deliver job
-type dispatcher struct {
-	workerPool chan *worker
-	jobQueue   chan Job
-	stop       chan bool
+func (w *WorkPool) Stop() {
+	if atomic.CompareAndSwapInt32(&w.stopped, 0, 1) {
+		close(w.stopping)
+		w.drain()
+	}
 }
 
-func newDispatcher(workerPool chan *worker, jobQueue chan Job) *dispatcher {
-	d := &dispatcher{
-		workerPool: workerPool,
-		jobQueue:   jobQueue,
-		stop:       make(chan bool),
+func (w *WorkPool) addWorker() bool {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	if w.idleWorkers > 0 || w.numWorkers == w.maxWorkers {
+		return false
 	}
 
-	for i := 0; i < cap(d.workerPool); i++ {
-		worker := newWorker(d.workerPool)
-		worker.start()
-	}
-
-	go d.dispatch()
-	return d
+	w.numWorkers++
+	go worker(w)
+	return true
 }
 
-func (d *dispatcher) dispatch() {
+func (w *WorkPool) workerStopping(force bool) bool {
+	w.mutex.Lock()
+	if !force {
+		if len(w.workQueue) <= w.numWorkers {
+			w.mutex.Unlock()
+			return false
+		}
+	}
+
+	w.numWorkers--
+	w.mutex.Unlock()
+
+	return true
+}
+
+func (w *WorkPool) drain() {
 	for {
 		select {
-		case job := <-d.jobQueue:
-			worker := <-d.workerPool
-			worker.jobChannel <- job
-		case stop := <-d.stop:
-			if stop {
-				for i := 0; i < cap(d.workerPool); i++ {
-					worker := <-d.workerPool
-
-					worker.stop <- true
-					<-worker.stop
-				}
-
-				d.stop <- true
-				return
-			}
+		case <-w.workQueue:
+		default:
+			return
 		}
 	}
 }
 
-// Represents user request, function which should be executed in some worker.
-type Job func()
+func worker(w *WorkPool) {
+	timer := time.NewTimer(waitTimeout)
+	defer timer.Stop()
 
-type Pool struct {
-	JobQueue   chan Job
-	dispatcher *dispatcher
-	wg         sync.WaitGroup
-}
+	for {
+		if atomic.LoadInt32(&w.stopped) == 1 {
+			w.workerStopping(true)
+			return
+		}
 
-// Will make pool of gorouting workers.
-// numWorkers - how many workers will be created for this pool
-// queueLen - how many jobs can we accept until we block
-//
-// Returned object contains JobQueue reference, which you can use to send job to pool.
-func NewPool(numWorkers int, jobQueueLen int) *Pool {
-	jobQueue := make(chan Job, jobQueueLen)
-	workerPool := make(chan *worker, numWorkers)
+		select {
+		case <-timer.C:
+			if w.workerStopping(false) {
+				return
+			}
+			timer.Reset(waitTimeout)
 
-	pool := &Pool{
-		JobQueue:   jobQueue,
-		dispatcher: newDispatcher(workerPool, jobQueue),
+		case <-w.stopping:
+			w.workerStopping(true)
+			return
+
+		case work := <-w.workQueue:
+			timer.Stop()
+
+			w.mutex.Lock()
+			w.idleWorkers--
+			w.mutex.Unlock()
+
+		NOWORK:
+			for {
+				work()
+				select {
+				case work = <-w.workQueue:
+				case <-w.stopping:
+					break NOWORK
+				default:
+					break NOWORK
+				}
+			}
+
+			w.mutex.Lock()
+			w.idleWorkers++
+			w.mutex.Unlock()
+
+			timer.Reset(waitTimeout)
+		}
 	}
-
-	return pool
-}
-
-// In case you are using WaitAll fn, you should call this method
-// every time your job is done.
-//
-// If you are not using WaitAll then we assume you have your own way of synchronizing.
-func (p *Pool) JobDone() {
-	p.wg.Done()
-}
-
-// How many jobs we should wait when calling WaitAll.
-// It is using WaitGroup Add/Done/Wait
-func (p *Pool) WaitCount(count int) {
-	p.wg.Add(count)
-}
-
-// Will wait for all jobs to finish.
-func (p *Pool) WaitAll() {
-	p.wg.Wait()
-}
-
-// Will release resources used by pool
-func (p *Pool) Release() {
-	p.dispatcher.stop <- true
-	<-p.dispatcher.stop
 }
