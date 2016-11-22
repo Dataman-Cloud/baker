@@ -9,14 +9,15 @@ import (
 
 // Config type.
 type Config struct {
-	Server         ServerConfig         `yaml:"server"`
-	Users          map[string]Authorize `yaml:"users"`
-	DockerRegistry DockerRegistry       `yaml:"dockerRegistry"`
+	Server         ServerConfig               `yaml:"server"`
+	Users          map[string]Authorize       `yaml:"users"`
+	DockerRegistry DockerRegistry             `yaml:"dockerregistry"`
+	WorkPool       map[string]WorkPoolOptions `yaml:"workpool"`
 }
 
 // ServerConfig type.
 type ServerConfig struct {
-	ListenAddress string `yaml:"addr,omitempty"`
+	ListenAddress string `yaml:"address"`
 }
 
 // Password type.
@@ -31,6 +32,11 @@ type DockerRegistry struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 	Email    string `yaml:"email"`
+}
+
+// workpool type.
+type WorkPoolOptions struct {
+	MaxWorkers string `yaml:"size"`
 }
 
 func validate(c *Config) error {

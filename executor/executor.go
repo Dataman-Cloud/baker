@@ -1,34 +1,44 @@
 package executor
 
 import (
-	"github.com/Sirupsen/logrus"
-
-	"github.com/Dataman-Cloud/baker/config"
-	"github.com/Dataman-Cloud/baker/external/docker"
+	"fmt"
+	"sync"
 )
 
-// Execute is a method to execute build image and push image to registry
-// with limit a number of workers/executors.
-func Execute(imageName string, config *config.DockerRegistry) error {
-	registry := config.Address
-	repo := config.Repo
-	client := docker.NewDockerClient()
-	err := client.DockerLogin(config.Username, config.Password,
-		config.Email, registry)
-	if err != nil {
-		logrus.Fatal("error docker login to the registry.")
-		return err
+type Executor struct {
+	pool  *WorkPool
+	works []func()
+}
+
+func NewExecutor(maxWorkers int, works []func()) (*Executor, error) {
+	if maxWorkers < 1 {
+		return nil, fmt.Errorf("must provide positive maxWorkers; provided %d", maxWorkers)
 	}
-	imageAddrAndName := registry + "/" + repo + "/" + imageName
-	err = client.DockerBuild(imageAddrAndName, ".", "Dockerfile")
-	if err != nil {
-		logrus.Fatal("error build image from dockerfile.")
-		return err
+
+	var pool *WorkPool
+	if len(works) < maxWorkers {
+		pool = newWorkPoolWithPending(len(works), 0)
+	} else {
+		pool = newWorkPoolWithPending(maxWorkers, len(works)-maxWorkers)
 	}
-	err = client.DockerPush(imageAddrAndName, registry)
-	if err != nil {
-		logrus.Fatal("error docker push image to the registry.")
-		return err
+
+	return &Executor{
+		pool:  pool,
+		works: works,
+	}, nil
+}
+
+func (t *Executor) Execute() {
+	defer t.pool.Stop()
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(t.works))
+	for _, work := range t.works {
+		work := work
+		t.pool.Submit(func() {
+			defer wg.Done()
+			work()
+		})
 	}
-	return nil
+	wg.Wait()
 }

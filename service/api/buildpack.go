@@ -216,15 +216,19 @@ func BuildpackImagePush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	// execute an executer to do build docker image
-	// and push docker image to registry.
-	config := c.MustGet("config").(config.Config)
+	// execute an executer to imagepush.
+	config := c.MustGet("config").(*config.Config)
 	imageName := appName + ":" + timestamp
-	err = executor.Execute(imageName, &config.DockerRegistry)
-	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
+	workPool := config.WorkPool
+	imagePushWorkPoolOptions := workPool["imagepush"]
+	imagePushWorkPoolSize, _ := strconv.Atoi(imagePushWorkPoolOptions.MaxWorkers)
+	works := make([]func(), 1)
+	works[0] = func() {
+		executor.ImagePush(imageName, &config.DockerRegistry)
 	}
+	executor, err := executor.NewExecutor(imagePushWorkPoolSize, works)
+	executor.Execute()
+
 	// remove.
 	defer func() {
 		err = os.Remove(path + "/Dockerfile")
