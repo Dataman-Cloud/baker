@@ -110,17 +110,13 @@ func BuildpackImport(c *gin.Context) {
 					return
 				}
 			}
-			dockerfile += "ENTRYPOINT run.sh && /bin/bash"
+			dockerfile += "ENTRYPOINT run.sh && /bin/bash \n"
 		}
 
 		if !disconf {
 			if startCmd != "" {
 				dockerfile += "ENTRYPOINT " + startCmd + "&& /bin/bash"
 			}
-		}
-
-		if startCmd != "" {
-			dockerfile += "ENTRYPOINT run.sh && /bin/bash"
 		}
 		ioutil.WriteFile(dockerfilePath, []byte(dockerfile), 0777)
 	}
@@ -244,7 +240,7 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	// copy run.sh to app timestamp directory.
-	err = util.CopyFile(appfileDir+"/"+"run.sh", path+"/run.sh")
+	err = util.CopyFile(appfilesDir+"/"+"run.sh", path+"/run.sh")
 	if err != nil {
 		logrus.Fatal("error copy run.sh to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
