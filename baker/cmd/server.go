@@ -64,6 +64,7 @@ func server(c *cli.Context) error {
 		middleware.Config(c),
 		middleware.Store(c),
 		middleware.Cache(c),
+		middleware.BakeWorkPool(c),
 	)
 
 	// start the server with tls enabled
