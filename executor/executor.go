@@ -1,20 +1,23 @@
 package executor
 
 import (
-	"fmt"
+	"errors"
 	"sync"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type Executor struct {
-	pool  *WorkPool
-	works []func()
+	Pool  *WorkPool
+	Works []func()
 }
 
 func NewExecutor(maxWorkers int, works []func()) (*Executor, error) {
 	if maxWorkers < 1 {
-		return nil, fmt.Errorf("must provide positive maxWorkers; provided %d", maxWorkers)
-	}
+		logrus.Fatalf("must provide positive maxWorkers; provided %d", maxWorkers)
 
+		return nil, errors.New("must provide positive maxWorkers")
+	}
 	var pool *WorkPool
 	if len(works) < maxWorkers {
 		pool = newWorkPoolWithPending(len(works), 0)
@@ -23,19 +26,19 @@ func NewExecutor(maxWorkers int, works []func()) (*Executor, error) {
 	}
 
 	return &Executor{
-		pool:  pool,
-		works: works,
+		Pool:  pool,
+		Works: works,
 	}, nil
 }
 
 func (t *Executor) Execute() {
-	defer t.pool.Stop()
+	defer t.Pool.Stop()
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(t.works))
-	for _, work := range t.works {
+	wg.Add(len(t.Works))
+	for _, work := range t.Works {
 		work := work
-		t.pool.Submit(func() {
+		t.Pool.Submit(func() {
 			defer wg.Done()
 			work()
 		})

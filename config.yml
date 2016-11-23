@@ -10,15 +10,15 @@ users: # static users.
   "test":
     password: "$2y$05$WuwBasGDAgr.QCbGIjKJaep4dhxeai9gNZdmBnQXqpKly57oNutya"  # 123
 
- dockerregistry: # docker registry setting.
-    address: "http://demoharbor.dataman-inc.net"
+dockerregistry: # docker registry setting.
+    address: "demoregistry.dataman-inc.com"
     repo: "library"
-    username: "csdsystem"
-    password: "Dataman@1234"
+    username: "admin"
+    password: "v4kczahOfYqP"
     email: "csd-system@dataman-inc.com"
 
- workpool: # worker pool setting.
+workpool: # worker pool setting.
    "imagepush":
-     size: 1    
+     size: "1"    
 
 

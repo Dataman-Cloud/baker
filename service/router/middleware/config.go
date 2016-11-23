@@ -21,10 +21,10 @@ func Config(cli *cli.Context) gin.HandlerFunc {
 func setupConfig(c *cli.Context) *config.Config {
 	// read the configuration
 	logrus.Infof("Configuration path: %s", c.String("config-path"))
-	config, err := config.Decode(c.String("config-path"))
+	cf, err := config.Decode(c.String("config-path"))
 	if err != nil {
 		logrus.Infof("Configuration error: %s", err)
 		return nil
 	}
-	return config
+	return cf
 }

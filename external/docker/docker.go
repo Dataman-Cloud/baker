@@ -71,7 +71,7 @@ const (
 )
 
 type RegistryAuth struct {
-	AuthConfigurations map[string]AuthConfiguration `json:"configs"`
+	AuthConfigurations map[string]AuthConfiguration `json:"auths"`
 }
 
 type AuthConfiguration struct {
@@ -87,7 +87,6 @@ func getDockerAuthConfigurationFromFile(registry string) *docker.AuthConfigurati
 		Password:      auth.Configs[registry].Password,
 		ServerAddress: auth.Configs[registry].ServerAddress,
 	}
-
 	return dockerAuthConfiguration
 }
 

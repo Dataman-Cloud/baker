@@ -65,6 +65,16 @@ func DisConfPull(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	// remove.
+	defer func() {
+		err = os.Remove(zipfile)
+		if err != nil {
+			logrus.Error("error remove props.zip in tmp path.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+	}()
+
 	// write zipfile content to response body
 	openFile, err := os.Open(zipfile)
 	if err != nil {

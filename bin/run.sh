@@ -15,3 +15,4 @@ mkdir -p /config
 ./baker -s $CONFIG_SERVER disconf pull --path=$CONFIG_DIR 
 ./baker -s $CONFIG_SERVER disconf unzip --file=props.zip --path=/config
 mv /config/*/ /
+
