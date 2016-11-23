@@ -1,10 +1,7 @@
 package executor
 
 import (
-	"errors"
 	"sync"
-
-	"github.com/Sirupsen/logrus"
 )
 
 type Executor struct {
@@ -12,19 +9,7 @@ type Executor struct {
 	Works []func()
 }
 
-func NewExecutor(maxWorkers int, works []func()) (*Executor, error) {
-	if maxWorkers < 1 {
-		logrus.Fatalf("must provide positive maxWorkers; provided %d", maxWorkers)
-
-		return nil, errors.New("must provide positive maxWorkers")
-	}
-	var pool *WorkPool
-	if len(works) < maxWorkers {
-		pool = newWorkPoolWithPending(len(works), 0)
-	} else {
-		pool = newWorkPoolWithPending(maxWorkers, len(works)-maxWorkers)
-	}
-
+func NewExecutor(pool *WorkPool, works []func()) (*Executor, error) {
 	return &Executor{
 		Pool:  pool,
 		Works: works,
