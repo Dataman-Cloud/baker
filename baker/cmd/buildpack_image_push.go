@@ -54,7 +54,7 @@ func buildpackImagePush(c *cli.Context) error {
 	// image push.
 	logrus.Infof("app image push in baker server: %s", appName)
 	uri := "http://" + baseUri + "/api/buildpack/image/push?name=" + appName + "&timestamp=" + timestamp
-	req, err := http.NewRequest("GET", uri, nil)
+	req, err := http.NewRequest("POST", uri, nil)
 	if err != nil {
 		logrus.Fatalf("error create image push request: %s", err)
 		return err

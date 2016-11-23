@@ -80,7 +80,8 @@ func BuildpackImport(c *gin.Context) {
 		dockerfile := "FROM " + baseImage + "\n" +
 			"MAINTAINER admin@dataman-inc.com" + "\n\n" +
 			"#####ADD BINARY FILE########\n" +
-			"ADD " + binaryFile + " " + binaryPath + "\n\n"
+			"ADD " + binaryFile + " " + binaryPath + "\n\n" +
+			"WORKDIR /\n"
 		if startupFile != "" {
 			dockerfile += "#####COPY STARTUP FILE########\n" +
 				"COPY " + startupFile + " /" + "\n\n"
@@ -230,8 +231,10 @@ func BuildpackDockerfilePush(c *gin.Context) {
 func BuildpackImagePush(c *gin.Context) {
 	appName := c.Query("name")
 	timestamp := c.Query("timestamp")
-	dockerfile := appfilesDir + "/" + "Dockerfile"
-	path := appfilesDir + "/" + timestamp
+	appDir := appfilesDir + "/" + appName
+	runshfile := appDir + "/" + "run.sh"
+	dockerfile := appDir + "/" + "Dockerfile"
+	path := appfilesDir + "/" + appName + "/" + timestamp
 	// copy baker to app timestamp directory.
 	err := util.CopyFile(baseDir+"/bin/baker", path+"/baker")
 	if err != nil {
@@ -240,7 +243,7 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	// copy run.sh to app timestamp directory.
-	err = util.CopyFile(appfilesDir+"/"+"run.sh", path+"/run.sh")
+	err = util.CopyFile(runshfile, path+"/run.sh")
 	if err != nil {
 		logrus.Fatal("error copy run.sh to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -254,17 +257,25 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	// execute an executer to imagepush.
-	config := c.MustGet("config").(*config.Config)
+	cf := c.MustGet("config").(*config.Config)
 	imageName := appName + ":" + timestamp
-	workPool := config.WorkPool
+	workPool := cf.WorkPool
 	imagePushWorkPoolOptions := workPool["imagepush"]
 	imagePushWorkPoolSize, _ := strconv.Atoi(imagePushWorkPoolOptions.MaxWorkers)
 	works := make([]func(), 1)
 	works[0] = func() {
-		executor.ImagePush(imageName, &config.DockerRegistry)
+		err := executor.ImagePush(imageName, path, cf.DockerRegistry)
+		if err != nil {
+			logrus.Fatalf("failed to execute imagepush. %s", err)
+		}
 	}
-	executor, err := executor.NewExecutor(imagePushWorkPoolSize, works)
-	executor.Execute()
+	jobExec, err := executor.NewExecutor(imagePushWorkPoolSize, works)
+	if err != nil {
+		logrus.Fatal("error create job executor.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	jobExec.Execute()
 
 	// remove.
 	defer func() {

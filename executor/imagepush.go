@@ -9,7 +9,7 @@ import (
 
 // Execute is a method to execute build image and push image to registry
 // with limit a number of workers/executors.
-func ImagePush(imageName string, config *config.DockerRegistry) error {
+func ImagePush(imageName, path string, config *config.DockerRegistry) error {
 	registry := config.Address
 	repo := config.Repo
 	client := docker.NewDockerClient()
@@ -20,7 +20,7 @@ func ImagePush(imageName string, config *config.DockerRegistry) error {
 		return err
 	}
 	imageAddrAndName := registry + "/" + repo + "/" + imageName
-	err = client.DockerBuild(imageAddrAndName, ".", "Dockerfile")
+	err = client.DockerBuild(imageAddrAndName, path, "Dockerfile")
 	if err != nil {
 		logrus.Fatal("error build image from dockerfile.")
 		return err
