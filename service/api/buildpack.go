@@ -302,14 +302,19 @@ func BuildpackImagePush(c *gin.Context) {
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
-	works := make([]func(), 1)
-	works[0] = func() {
+	work := func() {
 		err := executor.ImagePush(imageName, workDir, &cf.DockerRegistry)
 		if err != nil {
 			logrus.Error("failed to execute imagepush. %s", err)
 		}
 	}
-	jobExec, err := executor.NewExecutor(bakeWorkPool, works)
+	tasks := make([]executor.Task, 1)
+	tasks[0] = executor.Task{
+		Name:   workDir,
+		Work:   work,
+		Status: 0,
+	}
+	jobExec, err := executor.NewExecutor(bakeWorkPool, tasks)
 	if err != nil {
 		logrus.Error("error create job executor.")
 		c.AbortWithError(http.StatusBadRequest, err)

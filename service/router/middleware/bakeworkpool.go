@@ -5,7 +5,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
-	"github.com/urfave/cli"
 
 	"github.com/Dataman-Cloud/baker/config"
 	"github.com/Dataman-Cloud/baker/executor"
@@ -13,16 +12,15 @@ import (
 
 // BakeWorkPool is a middleware function that initializes the BakeWorkPool and attaches to
 // the context of every http.Request.
-func BakeWorkPool(cli *cli.Context) gin.HandlerFunc {
+func BakeWorkPool(cf *config.Config) gin.HandlerFunc {
+	v := setupBakeWorkPool(cf)
 	return func(c *gin.Context) {
-		v := setupBakeWorkPool(c)
 		c.Set("bakeworkpool", v)
 	}
 }
 
 // helper function to create the bakeWorkPool from the CLI context.
-func setupBakeWorkPool(c *gin.Context) *executor.WorkPool {
-	cf := c.MustGet("config").(*config.Config)
+func setupBakeWorkPool(cf *config.Config) *executor.WorkPool {
 	workPool := cf.WorkPool
 	imagePushWorkPoolOptions := workPool["imagepush"]
 	imagePushWorkPoolSize, _ := strconv.Atoi(imagePushWorkPoolOptions.MaxWorkers)
