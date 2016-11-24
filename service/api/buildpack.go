@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"github.com/Dataman-Cloud/baker/config"
 	"github.com/Dataman-Cloud/baker/util"
@@ -43,8 +44,23 @@ func BuildpackImport(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// save upload file to desc dir.
-	desc := appfilesDir + "/" + appName + "/" + timestamp
+	// appDir lock.
+	appDir := appfilesDir + "/" + appName
+	d, err := os.Open(appDir)
+	if err != nil {
+		logrus.Errorf("error open app dir.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	err = syscall.Flock(int(d.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		logrus.Errorf("cannot flock app dir.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	// save app zip file to desc dir.
+	desc := appDir + "/" + timestamp
 	err = os.MkdirAll(desc, 0777)
 	if err != nil {
 		logrus.Error("error create desc file directory.")
@@ -59,7 +75,7 @@ func BuildpackImport(c *gin.Context) {
 	}
 	defer f.Close()
 	io.Copy(f, file)
-	// unzip upload file in desc dir.
+	// unzip app zip file in desc dir.
 	err = util.Unzip(desc+"/"+handler.Filename, desc)
 	if err != nil {
 		logrus.Error("error unzip app file.")
@@ -67,14 +83,16 @@ func BuildpackImport(c *gin.Context) {
 		return
 	}
 	// remove.
-	err = os.Remove(desc + "/" + handler.Filename)
-	if err != nil {
-		logrus.Error("error remove app.zip in the path.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
+	defer func() {
+		err = os.Remove(desc + "/" + handler.Filename)
+		if err != nil {
+			logrus.Error("error remove app.zip in the path.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+	}()
 	// dockerfile
-	dockerfilePath := appfilesDir + "/" + appName + "/Dockerfile"
+	dockerfilePath := appDir + "/" + "Dockerfile"
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 		// create Dockerfile for the app.
 		dockerfile := "FROM " + baseImage + "\n" +
@@ -121,6 +139,13 @@ func BuildpackImport(c *gin.Context) {
 		}
 		ioutil.WriteFile(dockerfilePath, []byte(dockerfile), 0777)
 	}
+
+	// unlock.
+	defer func() {
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
+	}()
+
 	c.JSON(http.StatusOK, struct{ Filepath string }{desc})
 }
 
@@ -162,14 +187,18 @@ func BuildpackDel(c *gin.Context) {
 // pull dockerfile from baker fileserver.
 func BuildpackDockerfilePull(c *gin.Context) {
 	writer := c.Writer
-	appName := appfilesDir + "/" + c.Query("name") + "/Dockerfile"
+	appName := c.Query("name")
+	appDir := appfilesDir + "/" + appName
+
 	// write file content to response body
-	openFile, err := os.Open(appName)
+	dockerfile := appDir + "/" + "Dockerfile"
+	openFile, err := os.Open(dockerfile)
 	if err != nil {
 		logrus.Error("error open app dockerfile.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	defer openFile.Close()
 	//Get the Content-Type of the file
 	//Create a buffer to store the header of the file in
 	fileHeader := make([]byte, 512)
@@ -183,7 +212,7 @@ func BuildpackDockerfilePull(c *gin.Context) {
 	fileSize := strconv.FormatInt(fileStat.Size(), 10) //Get file size as a string
 
 	//Send the headers
-	writer.Header().Set("Content-Disposition", "attachment; filename="+appName)
+	writer.Header().Set("Content-Disposition", "attachment; filename="+dockerfile)
 	writer.Header().Set("Content-Type", fileContentType)
 	writer.Header().Set("Content-Length", fileSize)
 
@@ -197,7 +226,7 @@ func BuildpackDockerfilePull(c *gin.Context) {
 // push dockerfile to baker fileserver.
 func BuildpackDockerfilePush(c *gin.Context) {
 	appName := c.Request.FormValue("app-name")
-	path := appfilesDir + "/" + appName
+	appDir := appfilesDir + "/" + appName
 
 	c.Request.ParseMultipartForm(32 << 20)
 	file, handler, err := c.Request.FormFile("uploadfile")
@@ -207,13 +236,23 @@ func BuildpackDockerfilePush(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-	err = os.MkdirAll(path, 0777)
+
+	// appDir lock.
+	d, err := os.Open(appDir)
 	if err != nil {
-		logrus.Error("error create upload file directory.")
+		logrus.Errorf("error open app path.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	f, err := os.OpenFile(path+"/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0777)
+	err = syscall.Flock(int(d.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		logrus.Errorf("cannot flock app path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	// write file.
+	f, err := os.OpenFile(appDir+"/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0777)
 	if err != nil {
 		logrus.Error("error create upload file. ")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -221,9 +260,16 @@ func BuildpackDockerfilePush(c *gin.Context) {
 	}
 	defer f.Close()
 	io.Copy(f, file)
+
+	// unlock.
+	defer func() {
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
+	}()
+
 	c.JSON(http.StatusOK, struct {
 		Filepath string
-	}{path})
+	}{appDir})
 }
 
 // BuildpackImagePush is a endpoint that
@@ -232,11 +278,27 @@ func BuildpackImagePush(c *gin.Context) {
 	appName := c.Query("name")
 	timestamp := c.Query("timestamp")
 	appDir := appfilesDir + "/" + appName
+
+	// appDir lock.
+	d, err := os.Open(appDir)
+	if err != nil {
+		logrus.Errorf("error open app path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	err = syscall.Flock(int(d.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		logrus.Errorf("cannot flock app path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	// copy baker,run.sh,dockerfile to app timestamp directory.
 	runshfile := appDir + "/" + "run.sh"
 	dockerfile := appDir + "/" + "Dockerfile"
 	path := appfilesDir + "/" + appName + "/" + timestamp
 	// copy baker to app timestamp directory.
-	err := util.CopyFile(baseDir+"/bin/baker", path+"/baker")
+	err = util.CopyFile(baseDir+"/bin/baker", path+"/baker")
 	if err != nil {
 		logrus.Fatal("error copy baker to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -256,6 +318,7 @@ func BuildpackImagePush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+
 	// execute an executer to imagepush.
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
@@ -295,5 +358,8 @@ func BuildpackImagePush(c *gin.Context) {
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
+		// unlock.
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
 	}()
 }

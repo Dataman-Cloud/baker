@@ -71,8 +71,8 @@ func DisConfPush(c *gin.Context) {
 		f.Close()
 		d.Close()
 		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
-
 	}()
+
 	c.JSON(http.StatusOK, struct {
 		Filepath string
 	}{containerPath})
