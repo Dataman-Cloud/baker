@@ -66,6 +66,11 @@ func BuildpackImport(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	// unlock.
+	defer func() {
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
+	}()
 
 	// save app zip file to desc dir.
 	desc := appDir + "/" + timestamp
@@ -147,12 +152,6 @@ func BuildpackImport(c *gin.Context) {
 		}
 		ioutil.WriteFile(dockerfilePath, []byte(dockerfile), 0777)
 	}
-
-	// unlock.
-	defer func() {
-		d.Close()
-		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
-	}()
 
 	c.JSON(http.StatusOK, struct{ Filepath string }{desc})
 }
@@ -259,6 +258,12 @@ func BuildpackDockerfilePush(c *gin.Context) {
 		return
 	}
 
+	// unlock.
+	defer func() {
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
+	}()
+
 	// write file.
 	f, err := os.OpenFile(appDir+"/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0777)
 	if err != nil {
@@ -268,12 +273,6 @@ func BuildpackDockerfilePush(c *gin.Context) {
 	}
 	defer f.Close()
 	io.Copy(f, file)
-
-	// unlock.
-	defer func() {
-		d.Close()
-		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
-	}()
 
 	c.JSON(http.StatusOK, struct {
 		Filepath string
@@ -296,10 +295,15 @@ func BuildpackImagePush(c *gin.Context) {
 	}
 	err = syscall.Flock(int(d.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 	if err != nil {
-		logrus.Errorf("cannot flock app path.")
+		logrus.Errorf("cannot flock app path. %s", appDir)
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	// unlock.
+	defer func() {
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
+	}()
 
 	// copy baker,run.sh,dockerfile to app timestamp directory.
 	runshfile := appDir + "/" + "run.sh"
@@ -354,20 +358,24 @@ func BuildpackImagePush(c *gin.Context) {
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
+	}()
+
+	defer func() {
 		err = os.Remove(path + "/run.sh")
 		if err != nil {
 			logrus.Error("error remove run.sh in the path.")
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
+	}()
+
+	defer func() {
 		err = os.Remove(path + "/Dockerfile")
 		if err != nil {
 			logrus.Error("error remove Dockerfile in the path.")
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
-		// unlock.
-		d.Close()
-		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
 	}()
+
 }
