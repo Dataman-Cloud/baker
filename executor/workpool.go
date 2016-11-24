@@ -5,6 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 const waitTimeout = 5 * time.Second
@@ -109,6 +111,7 @@ func worker(w *WorkPool) {
 
 		select {
 		case <-timer.C:
+			logrus.Info("EXPIRED")
 			if w.workerStopping(false) {
 				return
 			}

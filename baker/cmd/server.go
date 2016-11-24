@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/urfave/cli"
 
+	"github.com/Dataman-Cloud/baker/config"
 	"github.com/Dataman-Cloud/baker/service/router"
 	"github.com/Dataman-Cloud/baker/service/router/middleware"
 )
@@ -58,13 +59,21 @@ func server(c *cli.Context) error {
 		logrus.SetLevel(logrus.WarnLevel)
 	}
 
+	// read the config
+	logrus.Infof("Configuration path: %s", c.String("config-path"))
+	cf, err := config.Decode(c.String("config-path"))
+	if err != nil {
+		logrus.Infof("Configuration error: %s", err)
+		return nil
+	}
+
 	// setup the server and start the listener
 	handler := router.Load(
 		ginrus.Ginrus(logrus.StandardLogger(), time.RFC3339, true),
-		middleware.Config(c),
-		middleware.Store(c),
-		middleware.Cache(c),
-		middleware.BakeWorkPool(c),
+		middleware.Config(cf),
+		middleware.Store(cf),
+		middleware.Cache(cf),
+		middleware.BakeWorkPool(cf),
 	)
 
 	// start the server with tls enabled
