@@ -18,7 +18,7 @@ type DockerClient struct {
 func NewDockerClient() *DockerClient {
 	client, err := docker.NewClientFromEnv()
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Error(err)
 	}
 	return &DockerClient{
 		Client: client,
@@ -37,7 +37,7 @@ func (c *DockerClient) DockerBuild(name, context, dockerfile string) error {
 		AuthConfigs:  *auth,
 	})
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Error(err)
 	}
 	return err
 }
@@ -46,7 +46,7 @@ func (c *DockerClient) DockerBuild(name, context, dockerfile string) error {
 func (c *DockerClient) DockerLogin(username, password, email, registry string) error {
 	err := generateRegistryAuthFile(username, password, email, registry)
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Error(err)
 	}
 	return err
 }
@@ -60,7 +60,7 @@ func (c *DockerClient) DockerPush(image, registry string) error {
 		OutputStream: bytes.NewBuffer(nil),
 	}, *dockerAuthConfiguration)
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Error(err)
 	}
 
 	return err
@@ -104,7 +104,7 @@ func generateRegistryAuthFile(username, password, email, registry string) error 
 	jsonView, _ := json.Marshal(c)
 	err := ioutil.WriteFile(registryAuthFile, jsonView, 0600)
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Error(err)
 	}
 
 	return err
@@ -114,7 +114,7 @@ func loadRegistryAuthFile() *docker.AuthConfigurations {
 	content, _ := os.Open(registryAuthFile)
 	auth, err := docker.NewAuthConfigurations(content)
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Error(err)
 	}
 	return auth
 }
