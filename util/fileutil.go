@@ -35,7 +35,7 @@ func Unzip(src, dest string) error {
 
 			err = os.MkdirAll(fdir, 0777)
 			if err != nil {
-				logrus.Fatal(err)
+				logrus.Error(err)
 				return err
 			}
 			f, err := os.OpenFile(
@@ -122,13 +122,13 @@ func Zipit(source, target string) error {
 func CopyFile(src, dst string) (err error) {
 	in, err := os.Open(src)
 	if err != nil {
-		logrus.Fatalf("error in open file: %s", err)
+		logrus.Errorf("error in open file: %s", err)
 		return
 	}
 	defer in.Close()
 	out, err := os.Create(dst)
 	if err != nil {
-		logrus.Fatalf("error in create file: %s", err)
+		logrus.Errorf("error in create file: %s", err)
 		return
 	}
 	defer func() {
@@ -138,7 +138,7 @@ func CopyFile(src, dst string) (err error) {
 		}
 	}()
 	if _, err = io.Copy(out, in); err != nil {
-		logrus.Fatalf("error in copy file: %s", err)
+		logrus.Errorf("error in copy file: %s", err)
 		return
 	}
 	err = out.Sync()

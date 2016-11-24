@@ -24,13 +24,13 @@ func NewHttpClient(uri, username, password string) (*Client, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		logrus.Fatal("erro login.")
+		logrus.Error("erro login.")
 		return nil, err
 	}
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logrus.Fatal("error read response in login request.")
+		logrus.Error("error read response in login request.")
 		return nil, err
 	}
 	logrus.Info(resp.Status)
@@ -42,7 +42,7 @@ func NewHttpClient(uri, username, password string) (*Client, error) {
 	var login Login
 	err = json.Unmarshal(respBody, &login)
 	if err != nil {
-		logrus.Fatalf("error unmarshal for login response.%s", err)
+		logrus.Error("error unmarshal for login response.%s", err)
 		return nil, err
 	}
 

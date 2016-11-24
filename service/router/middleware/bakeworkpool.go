@@ -27,12 +27,12 @@ func setupBakeWorkPool(c *gin.Context) *executor.WorkPool {
 	imagePushWorkPoolOptions := workPool["imagepush"]
 	imagePushWorkPoolSize, _ := strconv.Atoi(imagePushWorkPoolOptions.MaxWorkers)
 	if imagePushWorkPoolSize < 1 {
-		logrus.Fatalf("must provide positive maxWorkers; provided %d", imagePushWorkPoolSize)
+		logrus.Errorf("must provide positive maxWorkers; provided %d", imagePushWorkPoolSize)
 		return nil
 	}
 	pool, err := executor.NewWorkPool(imagePushWorkPoolSize)
 	if err != nil {
-		logrus.Fatalf("error create bakeworkpool: %s", err)
+		logrus.Errorf("error create bakeworkpool: %s", err)
 		return nil
 	}
 	return pool
