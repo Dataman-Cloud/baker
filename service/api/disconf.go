@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
@@ -24,7 +25,6 @@ func DisConfPush(c *gin.Context) {
 	label := c.Request.FormValue("label")
 	timestamp := c.Request.FormValue("timestamp")
 	containerPath := c.Request.FormValue("container-path")
-	path := disconfDir + "/" + appName + "/" + label + "/" + timestamp + "" + containerPath
 
 	c.Request.ParseMultipartForm(32 << 20)
 	file, handler, err := c.Request.FormFile("uploadfile")
@@ -34,6 +34,24 @@ func DisConfPush(c *gin.Context) {
 		return
 	}
 	defer file.Close()
+
+	// appDisconfPath lock.
+	appDisconfPath := disconfDir + "/" + appName
+	d, err := os.Open(appDisconfPath)
+	if err != nil {
+		logrus.Errorf("error open app disconf path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	err = syscall.Flock(int(d.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+	if err != nil {
+		logrus.Errorf("cannot flock app disconf path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	// upload config files.
+	path := appDisconfPath + "/" + label + "/" + timestamp + "" + containerPath
 	err = os.MkdirAll(path, 0777)
 	if err != nil {
 		logrus.Error("error create upload file directory.")
@@ -46,8 +64,15 @@ func DisConfPush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	defer f.Close()
 	io.Copy(f, file)
+
+	// file close and unlock.
+	defer func() {
+		f.Close()
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
+
+	}()
 	c.JSON(http.StatusOK, struct {
 		Filepath string
 	}{containerPath})
