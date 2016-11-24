@@ -44,8 +44,16 @@ func BuildpackImport(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// appDir lock.
+	// create appDir.
 	appDir := appfilesDir + "/" + appName
+	err = os.MkdirAll(appDir, 0777)
+	if err != nil {
+		logrus.Error("error create desc file directory.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	// appDir lock.
 	d, err := os.Open(appDir)
 	if err != nil {
 		logrus.Errorf("error open app dir.")
@@ -112,7 +120,7 @@ func BuildpackImport(c *gin.Context) {
 				// copy run.sh to app timestamp directory.
 				err = util.CopyFile(baseDir+"/bin/run.sh", appfilesDir+"/"+appName+"/run.sh")
 				if err != nil {
-					logrus.Fatal("error copy run.sh to the path.")
+					logrus.Error("error copy run.sh to the path.")
 					c.AbortWithError(http.StatusBadRequest, err)
 					return
 				}
@@ -296,25 +304,25 @@ func BuildpackImagePush(c *gin.Context) {
 	// copy baker,run.sh,dockerfile to app timestamp directory.
 	runshfile := appDir + "/" + "run.sh"
 	dockerfile := appDir + "/" + "Dockerfile"
-	path := appfilesDir + "/" + appName + "/" + timestamp
+	path := appDir + "/" + timestamp
 	// copy baker to app timestamp directory.
 	err = util.CopyFile(baseDir+"/bin/baker", path+"/baker")
 	if err != nil {
-		logrus.Fatal("error copy baker to the path.")
+		logrus.Error("error copy baker to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	// copy run.sh to app timestamp directory.
 	err = util.CopyFile(runshfile, path+"/run.sh")
 	if err != nil {
-		logrus.Fatal("error copy run.sh to the path.")
+		logrus.Error("error copy run.sh to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	// copy Dockerfile to app timestamp directory.
 	err = util.CopyFile(dockerfile, path+"/Dockerfile")
 	if err != nil {
-		logrus.Fatal("error copy dockerfile to the path.")
+		logrus.Error("error copy dockerfile to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
@@ -327,12 +335,12 @@ func BuildpackImagePush(c *gin.Context) {
 	works[0] = func() {
 		err := executor.ImagePush(imageName, path, &cf.DockerRegistry)
 		if err != nil {
-			logrus.Fatalf("failed to execute imagepush. %s", err)
+			logrus.Error("failed to execute imagepush. %s", err)
 		}
 	}
 	jobExec, err := executor.NewExecutor(bakeWorkPool, works)
 	if err != nil {
-		logrus.Fatal("error create job executor.")
+		logrus.Error("error create job executor.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}

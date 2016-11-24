@@ -16,18 +16,18 @@ func ImagePush(imageName, path string, config *config.DockerRegistry) error {
 	err := client.DockerLogin(config.Username, config.Password,
 		config.Email, registry)
 	if err != nil {
-		logrus.Fatal("error docker login to the registry.")
+		logrus.Error("error docker login to the registry.")
 		return err
 	}
 	imageAddrAndName := registry + "/" + repo + "/" + imageName
 	err = client.DockerBuild(imageAddrAndName, path, "Dockerfile")
 	if err != nil {
-		logrus.Fatal("error build image from dockerfile.")
+		logrus.Error("error build image from dockerfile.")
 		return err
 	}
 	err = client.DockerPush(imageAddrAndName, registry)
 	if err != nil {
-		logrus.Fatal("error docker push image to the registry.")
+		logrus.Error("error docker push image to the registry.")
 		return err
 	}
 	return nil
