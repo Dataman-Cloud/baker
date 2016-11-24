@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/Dataman-Cloud/baker/config"
 	"github.com/Dataman-Cloud/baker/util"
@@ -18,7 +19,8 @@ import (
 )
 
 const (
-	appfilesDir = baseDir + "/appfiles"
+	appfilesDir  = baseDir + "/appfiles"
+	workspaceDir = baseDir + "/workspace"
 )
 
 // BuildpackImport is a endpoint that
@@ -46,33 +48,6 @@ func BuildpackImport(c *gin.Context) {
 
 	// create appDir.
 	appDir := appfilesDir + "/" + appName
-	err = os.MkdirAll(appDir, 0777)
-	if err != nil {
-		logrus.Error("error create desc file directory.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-
-	// appDir lock.
-	d, err := os.Open(appDir)
-	if err != nil {
-		logrus.Errorf("error open app dir.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	err = syscall.Flock(int(d.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-	if err != nil {
-		logrus.Errorf("cannot flock app dir.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	// unlock.
-	defer func() {
-		d.Close()
-		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
-	}()
-
-	// save app zip file to desc dir.
 	desc := appDir + "/" + timestamp
 	err = os.MkdirAll(desc, 0777)
 	if err != nil {
@@ -80,6 +55,8 @@ func BuildpackImport(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+
+	// save app zip file to desc dir.
 	f, err := os.OpenFile(desc+"/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0777)
 	if err != nil {
 		logrus.Error("error save zip file. ")
@@ -284,47 +261,37 @@ func BuildpackDockerfilePush(c *gin.Context) {
 func BuildpackImagePush(c *gin.Context) {
 	appName := c.Query("name")
 	timestamp := c.Query("timestamp")
+
 	appDir := appfilesDir + "/" + appName
-
-	// appDir lock.
-	d, err := os.Open(appDir)
-	if err != nil {
-		logrus.Errorf("error open app path.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	err = syscall.Flock(int(d.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-	if err != nil {
-		logrus.Errorf("cannot flock app path. %s", appDir)
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	// unlock.
-	defer func() {
-		d.Close()
-		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
-	}()
-
-	// copy baker,run.sh,dockerfile to app timestamp directory.
-	runshfile := appDir + "/" + "run.sh"
-	dockerfile := appDir + "/" + "Dockerfile"
+	runshFile := appDir + "/" + "run.sh"
+	dockerFile := appDir + "/" + "Dockerfile"
 	path := appDir + "/" + timestamp
-	// copy baker to app timestamp directory.
-	err = util.CopyFile(baseDir+"/bin/baker", path+"/baker")
+	workDir := workspaceDir + "/" + strconv.FormatInt(time.Now().Unix(), 10)
+
+	// copy appfiles to workspace directory.
+	var err error
+	err = util.CopyDir(path, workDir)
+	if err != nil {
+		logrus.Error("error copy app files to the path.")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	// copy baker to workspace directory.
+	err = util.CopyFile(baseDir+"/bin/baker", workDir+"/baker")
 	if err != nil {
 		logrus.Error("error copy baker to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	// copy run.sh to app timestamp directory.
-	err = util.CopyFile(runshfile, path+"/run.sh")
+	// copy run.sh to workspace directory.
+	err = util.CopyFile(runshFile, workDir+"/run.sh")
 	if err != nil {
 		logrus.Error("error copy run.sh to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	// copy Dockerfile to app timestamp directory.
-	err = util.CopyFile(dockerfile, path+"/Dockerfile")
+	// copy Dockerfile to workspace directory.
+	err = util.CopyFile(dockerFile, workDir+"/Dockerfile")
 	if err != nil {
 		logrus.Error("error copy dockerfile to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -337,7 +304,7 @@ func BuildpackImagePush(c *gin.Context) {
 	imageName := appName + ":" + timestamp
 	works := make([]func(), 1)
 	works[0] = func() {
-		err := executor.ImagePush(imageName, path, &cf.DockerRegistry)
+		err := executor.ImagePush(imageName, workDir, &cf.DockerRegistry)
 		if err != nil {
 			logrus.Error("failed to execute imagepush. %s", err)
 		}
@@ -349,33 +316,4 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	jobExec.Execute()
-
-	// remove.
-	defer func() {
-		err = os.Remove(path + "/baker")
-		if err != nil {
-			logrus.Error("error remove baker in the path.")
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-	}()
-
-	defer func() {
-		err = os.Remove(path + "/run.sh")
-		if err != nil {
-			logrus.Error("error remove run.sh in the path.")
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-	}()
-
-	defer func() {
-		err = os.Remove(path + "/Dockerfile")
-		if err != nil {
-			logrus.Error("error remove Dockerfile in the path.")
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-	}()
-
 }
