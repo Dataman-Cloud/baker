@@ -50,6 +50,12 @@ func DisConfPush(c *gin.Context) {
 		return
 	}
 
+	// unlock.
+	defer func() {
+		d.Close()
+		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
+	}()
+
 	// upload config files.
 	path := appDisconfPath + "/" + label + "/" + timestamp + "" + containerPath
 	err = os.MkdirAll(path, 0777)
@@ -64,14 +70,8 @@ func DisConfPush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	defer f.Close()
 	io.Copy(f, file)
-
-	// file close and unlock.
-	defer func() {
-		f.Close()
-		d.Close()
-		syscall.Flock(int(d.Fd()), syscall.LOCK_UN)
-	}()
 
 	c.JSON(http.StatusOK, struct {
 		Filepath string
@@ -107,6 +107,8 @@ func DisConfPull(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	defer openFile.Close()
+
 	//Get the Content-Type of the file
 	//Create a buffer to store the header of the file in
 	fileHeader := make([]byte, 512)
