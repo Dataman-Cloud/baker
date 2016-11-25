@@ -25,12 +25,9 @@ func NewExecutor(pool *WorkPool, tasks []Task) (*Executor, error) {
 }
 
 func (t *Executor) Execute() {
-	defer t.Pool.Stop()
-
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Tasks))
 	for _, task := range t.Tasks {
-		logrus.Info("WAITING")
 		work := task.Work
 		t.Pool.Submit(func() {
 			defer wg.Done()
