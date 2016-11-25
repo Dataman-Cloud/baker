@@ -263,64 +263,114 @@ func BuildpackImagePush(c *gin.Context) {
 	timestamp := c.Query("timestamp")
 
 	appDir := appfilesDir + "/" + appName
-	runshFile := appDir + "/" + "run.sh"
-	dockerFile := appDir + "/" + "Dockerfile"
-	path := appDir + "/" + timestamp
-	workDir := workspaceDir + "/" + strconv.FormatInt(time.Now().Unix(), 10)
+	taskID := strconv.FormatInt(time.Now().Unix(), 10)
+	workDir := workspaceDir + "/" + taskID
 
-	// copy appfiles to workspace directory.
-	var err error
-	err = util.CopyDir(path, workDir)
+	// setup imagepush workspace directory.
+	err := setupImagePushWorkDir(appDir, timestamp, workDir)
 	if err != nil {
-		logrus.Error("error copy app files to the path.")
 		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	// copy baker to workspace directory.
-	err = util.CopyFile(baseDir+"/bin/baker", workDir+"/baker")
-	if err != nil {
-		logrus.Error("error copy baker to the path.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	// copy run.sh to workspace directory.
-	err = util.CopyFile(runshFile, workDir+"/run.sh")
-	if err != nil {
-		logrus.Error("error copy run.sh to the path.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	// copy Dockerfile to workspace directory.
-	err = util.CopyFile(dockerFile, workDir+"/Dockerfile")
-	if err != nil {
-		logrus.Error("error copy dockerfile to the path.")
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
 	}
 
 	// execute an executer to imagepush.
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
-	work := func() {
-		err := executor.ImagePush(imageName, workDir, &cf.DockerRegistry)
-		if err != nil {
-			logrus.Error("failed to execute imagepush. %s", err)
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
+	taskStats := make(chan int32)
+	work := createImagePushTask(c, imageName, workDir, cf, taskStats)
+
+	defer func() {
+		if r := recover(); r != nil {
+			taskStats <- executor.StatusFailed
+		} else {
+			taskStats <- executor.StatusFinished
 		}
-	}
+	}()
+
 	tasks := make([]executor.Task, 1)
 	tasks[0] = executor.Task{
-		Name:   workDir,
-		Work:   work,
-		Status: 0,
+		ID:   taskID,
+		Work: work,
 	}
-	jobExec, err := executor.NewExecutor(bakeWorkPool, tasks)
+	taskExec, err := executor.NewExecutor(bakeWorkPool, tasks)
 	if err != nil {
 		logrus.Error("error create job executor.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	jobExec.Execute()
+	taskExec.Execute()
+}
+
+// copy app files, baker, run.sh, dockerfile to workspace directory
+func setupImagePushWorkDir(appDir, timestamp, workDir string) error {
+	runshFile := appDir + "/" + "run.sh"
+	dockerFile := appDir + "/" + "Dockerfile"
+	path := appDir + "/" + timestamp
+	// copy appfiles to workspace directory.
+	var err error
+	err = util.CopyDir(path, workDir)
+	if err != nil {
+		logrus.Error("error copy app files to the path.")
+		return err
+	}
+	// copy baker to workspace directory.
+	err = util.CopyFile(baseDir+"/bin/baker", workDir+"/baker")
+	if err != nil {
+		logrus.Error("error copy baker to the path.")
+		return err
+	}
+	// copy run.sh to workspace directory.
+	err = util.CopyFile(runshFile, workDir+"/run.sh")
+	if err != nil {
+		logrus.Error("error copy run.sh to the path.")
+		return err
+	}
+	// copy Dockerfile to workspace directory.
+	err = util.CopyFile(dockerFile, workDir+"/Dockerfile")
+	if err != nil {
+		logrus.Error("error copy dockerfile to the path.")
+		return err
+	}
+	return nil
+}
+
+// create ImagePushTask
+func createImagePushTask(c *gin.Context, imageName, workDir string, cf *config.Config, taskStats chan int32) func() {
+	taskStats <- executor.StatusStarting
+	work := func() {
+		var err error
+		taskStats <- executor.StatusRunning
+		imagePushTask := executor.NewImagePushTask(imageName, workDir, &cf.DockerRegistry)
+
+		// dockerLogin
+		taskStats <- executor.StatusDockerLoginStart
+		err = imagePushTask.DockerLogin()
+		if err != nil {
+			logrus.Error("error execute docker login.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		taskStats <- executor.StatusDockerLoginOK
+
+		// dockerBuild
+		taskStats <- executor.StatusDockerBuildStart
+		err = imagePushTask.DockerBuild()
+		if err != nil {
+			logrus.Error("error execute docker build.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		taskStats <- executor.StatusDockerBuildOK
+
+		// dockerPush
+		taskStats <- executor.StatusDockerPushStart
+		err = imagePushTask.DockerPush()
+		if err != nil {
+			logrus.Error("error execute docker push.")
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		taskStats <- executor.StatusDockerPushOK
+	}
+	return work
 }

@@ -2,8 +2,6 @@ package executor
 
 import (
 	"sync"
-
-	"github.com/Sirupsen/logrus"
 )
 
 type Executor struct {
@@ -12,10 +10,27 @@ type Executor struct {
 }
 
 type Task struct {
-	Name   string
-	Work   func()
-	Status int
+	ID   string
+	Work func()
 }
+
+type TaskStats struct {
+	Status chan int32
+}
+
+const (
+	StatusStarting         = 0
+	StatusRunning          = 1
+	StatusFailed           = 2
+	StatusExpired          = 3
+	StatusFinished         = 4
+	StatusDockerLoginStart = 5
+	StatusDockerLoginOK    = 6
+	StatusDockerBuildStart = 7
+	StatusDockerBuildOK    = 8
+	StatusDockerPushStart  = 9
+	StatusDockerPushOK     = 10
+)
 
 func NewExecutor(pool *WorkPool, tasks []Task) (*Executor, error) {
 	return &Executor{
@@ -31,13 +46,6 @@ func (t *Executor) Execute() {
 		work := task.Work
 		t.Pool.Submit(func() {
 			defer wg.Done()
-			defer func() {
-				if r := recover(); r != nil {
-					logrus.Info("FAILED")
-				} else {
-					logrus.Info("FINISHED")
-				}
-			}()
 			work()
 		})
 	}

@@ -7,12 +7,25 @@ import (
 	"github.com/Dataman-Cloud/baker/external/docker"
 )
 
-// Execute is a method to execute build image and push image to registry
-// with limit a number of workers/executors.
-func ImagePush(imageName, path string, config *config.DockerRegistry) error {
-	logrus.Info("RUNNING")
+type ImagePushTask struct {
+	Config    *config.DockerRegistry
+	ImageName string
+	WorkDir   string
+}
+
+// NewImagePushTask is a task to do build image and push image to registry
+func NewImagePushTask(imageName, workDir string, config *config.DockerRegistry) *ImagePushTask {
+	return &ImagePushTask{
+		Config:    config,
+		ImageName: imageName,
+		WorkDir:   workDir,
+	}
+}
+
+// DockerLogin
+func (t *ImagePushTask) DockerLogin() error {
+	config := t.Config
 	registry := config.Address
-	repo := config.Repo
 	client := docker.NewDockerClient()
 	err := client.DockerLogin(config.Username, config.Password,
 		config.Email, registry)
@@ -20,13 +33,32 @@ func ImagePush(imageName, path string, config *config.DockerRegistry) error {
 		logrus.Error("error docker login to the registry.")
 		return err
 	}
-	imageAddrAndName := registry + "/" + repo + "/" + imageName
-	err = client.DockerBuild(imageAddrAndName, path, "Dockerfile")
+	return nil
+}
+
+// DockerBuild
+func (t *ImagePushTask) DockerBuild() error {
+	config := t.Config
+	registry := config.Address
+	repo := config.Repo
+	imageAddrAndName := registry + "/" + repo + "/" + t.ImageName
+	client := docker.NewDockerClient()
+	err := client.DockerBuild(imageAddrAndName, t.WorkDir, "Dockerfile")
 	if err != nil {
 		logrus.Error("error build image from dockerfile.")
 		return err
 	}
-	err = client.DockerPush(imageAddrAndName, registry)
+	return nil
+}
+
+// DockerPush
+func (t *ImagePushTask) DockerPush() error {
+	config := t.Config
+	registry := config.Address
+	repo := config.Repo
+	imageAddrAndName := registry + "/" + repo + "/" + t.ImageName
+	client := docker.NewDockerClient()
+	err := client.DockerPush(imageAddrAndName, registry)
 	if err != nil {
 		logrus.Error("error docker push image to the registry.")
 		return err
