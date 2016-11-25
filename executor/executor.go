@@ -6,16 +6,13 @@ import (
 
 type Executor struct {
 	Pool  *WorkPool
-	Tasks []Task
+	Tasks []*Task
 }
 
 type Task struct {
-	ID   string
-	Work func()
-}
-
-type TaskStats struct {
-	Status chan int32
+	ID     string
+	Work   func()
+	Status chan int
 }
 
 const (
@@ -32,7 +29,7 @@ const (
 	StatusDockerPushOK     = 10
 )
 
-func NewExecutor(pool *WorkPool, tasks []Task) (*Executor, error) {
+func NewExecutor(pool *WorkPool, tasks []*Task) (*Executor, error) {
 	return &Executor{
 		Pool:  pool,
 		Tasks: tasks,
@@ -43,11 +40,8 @@ func (t *Executor) Execute() {
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Tasks))
 	for _, task := range t.Tasks {
-		work := task.Work
-		t.Pool.Submit(func() {
-			defer wg.Done()
-			work()
-		})
+		t.Pool.Submit(task)
+		defer wg.Done()
 	}
 	wg.Wait()
 }

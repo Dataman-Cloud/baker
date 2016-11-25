@@ -10,7 +10,7 @@ import (
 const waitTimeout = 5 * time.Second
 
 type WorkPool struct {
-	workQueue chan func()
+	workQueue chan *Task
 	stopping  chan struct{}
 	stopped   int32
 
@@ -30,13 +30,13 @@ func NewWorkPool(maxWorkers int) (*WorkPool, error) {
 
 func newWorkPoolWithPending(maxWorkers, pending int) *WorkPool {
 	return &WorkPool{
-		workQueue:  make(chan func(), maxWorkers+pending),
+		workQueue:  make(chan *Task, maxWorkers+pending),
 		stopping:   make(chan struct{}),
 		maxWorkers: maxWorkers,
 	}
 }
 
-func (w *WorkPool) Submit(work func()) {
+func (w *WorkPool) Submit(work *Task) {
 	if atomic.LoadInt32(&w.stopped) == 1 {
 		return
 	}
@@ -116,7 +116,7 @@ func worker(w *WorkPool) {
 
 		NOWORK:
 			for {
-				work()
+				work.Work()
 				select {
 				case work = <-w.workQueue:
 				case <-w.stopping:
