@@ -5,8 +5,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/Sirupsen/logrus"
 )
 
 const waitTimeout = 5 * time.Second
@@ -100,9 +98,6 @@ func (w *WorkPool) drain() {
 }
 
 func worker(w *WorkPool) {
-	timer := time.NewTimer(waitTimeout)
-	defer timer.Stop()
-
 	for {
 		if atomic.LoadInt32(&w.stopped) == 1 {
 			w.workerStopping(true)
@@ -110,20 +105,11 @@ func worker(w *WorkPool) {
 		}
 
 		select {
-		case <-timer.C:
-			logrus.Info("EXPIRED")
-			if w.workerStopping(false) {
-				return
-			}
-			timer.Reset(waitTimeout)
-
 		case <-w.stopping:
 			w.workerStopping(true)
 			return
 
 		case work := <-w.workQueue:
-			timer.Stop()
-
 			w.mutex.Lock()
 			w.idleWorkers--
 			w.mutex.Unlock()
@@ -139,12 +125,9 @@ func worker(w *WorkPool) {
 					break NOWORK
 				}
 			}
-
 			w.mutex.Lock()
 			w.idleWorkers++
 			w.mutex.Unlock()
-
-			timer.Reset(waitTimeout)
 		}
 	}
 }

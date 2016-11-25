@@ -306,6 +306,8 @@ func BuildpackImagePush(c *gin.Context) {
 		err := executor.ImagePush(imageName, workDir, &cf.DockerRegistry)
 		if err != nil {
 			logrus.Error("failed to execute imagepush. %s", err)
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
 		}
 	}
 	tasks := make([]executor.Task, 1)
