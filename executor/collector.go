@@ -40,7 +40,7 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 				TaskStatus := TaskStatusEnum[ts]
 				logrus.Infof("taskID:%s status:%s", c.TaskID, TaskStatus)
 				if !clientClosed {
-					ssEvent.Data = TaskStatus
+					ssEvent.Data = "taskID:" + c.TaskID + " " + "status:" + TaskStatus
 					ssEvent.Render(w)
 					w.Flush()
 				}
