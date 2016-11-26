@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -70,7 +71,13 @@ func buildpackImagePush(c *cli.Context) error {
 	reader := bufio.NewReader(resp.Body)
 	for {
 		line, _ := reader.ReadBytes('\n')
-		logrus.Infof(string(line))
+		s := string(line)
+		if strings.Index(s, "data:") >= 0 {
+			logrus.Infof(s[len("data:"):strings.Index(s, "\n")])
+		}
+		if strings.Index(string(line), "CLOSE") >= 0 {
+			break
+		}
 	}
 	return nil
 }
