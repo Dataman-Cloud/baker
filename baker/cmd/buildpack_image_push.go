@@ -75,16 +75,9 @@ func buildpackImagePush(c *cli.Context) error {
 		if strings.Index(s, "data:") >= 0 {
 			logrus.Infof(s[len("data:"):strings.Index(s, "\n")])
 		}
-		if strings.Index(s, "CLOSE") >= 0 || strings.Index(s, "ERROR") >= 0 {
+		if strings.Index(s, "CLOSE") >= 0 {
 			break
 		}
-	}
-	tr, ok := httpClient.Transport.(*http.Transport)
-	if !ok {
-		logrus.Error("sse/close: could not cast httpclient transport")
-	} else {
-		logrus.Error("sse/close: second cancel")
-		tr.CancelRequest(req)
 	}
 	return nil
 }
