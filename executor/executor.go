@@ -33,9 +33,6 @@ func (t *Executor) Execute() {
 			defer wg.Done()
 			task()
 		}
-		// start task collector
-		t.Collector.Start()
-		t.Collector.TaskStatus <- StatusStarting
 		// submit work
 		t.Pool.Submit(work)
 	}
