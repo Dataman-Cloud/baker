@@ -276,11 +276,11 @@ func BuildpackImagePush(c *gin.Context) {
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
-	taskStats := make(chan int)
+	taskStatus := make(chan int)
 	taskMsg := make(chan string)
 	isDone := make(chan bool)
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
-	taskCollector := executor.NewCollector(taskID, taskStats, taskMsg, isDone)
+	taskCollector := executor.NewCollector(taskID, taskStatus, taskMsg, isDone)
 	work := createImagePushWork(imagePushTask, taskCollector)
 
 	tasks := make([]*executor.Task, 1)
@@ -338,7 +338,7 @@ func setupImagePushWorkDir(appDir, timestamp, workDir string) error {
 // create ImagePushWork
 func createImagePushWork(t *executor.ImagePushTask, c *executor.Collector) func() {
 	return func() {
-		c.TaskStats <- executor.StatusRunning
+		c.TaskStatus <- executor.StatusRunning
 		var err error
 		workDir := t.WorkDir
 		imageName := t.ImageName
@@ -371,9 +371,9 @@ func createImagePushWork(t *executor.ImagePushTask, c *executor.Collector) func(
 
 		defer func() {
 			if r := recover(); r != nil {
-				c.TaskStats <- executor.StatusFailed
+				c.TaskStatus <- executor.StatusFailed
 			} else {
-				c.TaskStats <- executor.StatusFinished
+				c.TaskStatus <- executor.StatusFinished
 			}
 		}()
 	}

@@ -5,18 +5,18 @@ import (
 )
 
 type Collector struct {
-	TaskID    string
-	TaskStats chan int
-	TaskMsg   chan string
-	IsDone    chan bool
+	TaskID     string
+	TaskStatus chan int
+	TaskMsg    chan string
+	IsDone     chan bool
 }
 
-func NewCollector(taskID string, taskStats chan int, taskMsg chan string, isDone chan bool) *Collector {
+func NewCollector(taskID string, taskStatus chan int, taskMsg chan string, isDone chan bool) *Collector {
 	return &Collector{
-		TaskID:    taskID,
-		TaskStats: taskStats,
-		TaskMsg:   taskMsg,
-		IsDone:    isDone,
+		TaskID:     taskID,
+		TaskStatus: taskStatus,
+		TaskMsg:    taskMsg,
+		IsDone:     isDone,
 	}
 }
 
@@ -25,13 +25,13 @@ func (c *Collector) Start() {
 		logrus.Info("Collector start")
 		for {
 			select {
-			case ts := <-c.TaskStats:
-				logrus.Info("taskID:%s status:%s", c.TaskID, ts)
+			case ts := <-c.TaskStatus:
+				logrus.Infof("taskID:%s status:%s", c.TaskID, ts)
 				if ts == StatusFinished || ts == StatusFailed || ts == StatusExpired {
 					c.IsDone <- true
 				}
 			case tm := <-c.TaskMsg:
-				logrus.Info("taskID:%s message:%s", c.TaskID, tm)
+				logrus.Infof("taskID:%s message:%s", c.TaskID, tm)
 			case <-c.IsDone:
 				break
 			}
