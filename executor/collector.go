@@ -32,6 +32,7 @@ func (c *Collector) Start() {
 				}
 			case tm := <-c.TaskMsg:
 				logrus.Infof("taskID:%s message:%s", c.TaskID, tm)
+				c.IsDone <- true
 			case <-c.IsDone:
 				break
 			}
