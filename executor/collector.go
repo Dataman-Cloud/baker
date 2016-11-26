@@ -52,7 +52,10 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 				}
 			case tm := <-c.TaskMsg:
 				logrus.Infof("taskID:%s message:%s", c.TaskID, tm)
-				ctx.AbortWithError(http.StatusBadRequest, errors.New(tm))
+				ssEvent.Data = "ERROR " + errors.New(tm)
+				ssEvent.Render(w)
+				w.Flush()
+				//ctx.AbortWithError(http.StatusBadRequest, errors.New(tm))
 				c.IsDone <- true
 			case <-c.IsDone:
 				break

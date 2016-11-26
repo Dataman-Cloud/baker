@@ -75,7 +75,7 @@ func buildpackImagePush(c *cli.Context) error {
 		if strings.Index(s, "data:") >= 0 {
 			logrus.Infof(s[len("data:"):strings.Index(s, "\n")])
 		}
-		if strings.Index(string(line), "CLOSE") >= 0 {
+		if strings.Index(s, "CLOSE") >= 0 || strings.Index(s, "ERROR") >= 0 {
 			break
 		}
 	}
