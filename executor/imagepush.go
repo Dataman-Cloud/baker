@@ -8,6 +8,7 @@ import (
 )
 
 type ImagePushTask struct {
+	Client    *docker.DockerClient
 	Config    *config.DockerRegistry
 	ImageName string
 	WorkDir   string
@@ -16,6 +17,7 @@ type ImagePushTask struct {
 // NewImagePushTask is a task to do build image and push image to registry
 func NewImagePushTask(imageName, workDir string, config *config.DockerRegistry) *ImagePushTask {
 	return &ImagePushTask{
+		Client:    docker.NewDockerClient(),
 		Config:    config,
 		ImageName: imageName,
 		WorkDir:   workDir,
@@ -26,8 +28,7 @@ func NewImagePushTask(imageName, workDir string, config *config.DockerRegistry) 
 func (t *ImagePushTask) DockerLogin() error {
 	config := t.Config
 	registry := config.Address
-	client := docker.NewDockerClient()
-	err := client.DockerLogin(config.Username, config.Password,
+	err := t.Client.DockerLogin(config.Username, config.Password,
 		config.Email, registry)
 	if err != nil {
 		logrus.Error("error docker login to the registry.")
@@ -42,8 +43,7 @@ func (t *ImagePushTask) DockerBuild() error {
 	registry := config.Address
 	repo := config.Repo
 	imageAddrAndName := registry + "/" + repo + "/" + t.ImageName
-	client := docker.NewDockerClient()
-	err := client.DockerBuild(imageAddrAndName, t.WorkDir, "Dockerfile")
+	err := t.Client.DockerBuild(imageAddrAndName, t.WorkDir, "Dockerfile")
 	if err != nil {
 		logrus.Error("error build image from dockerfile.")
 		return err
@@ -57,8 +57,7 @@ func (t *ImagePushTask) DockerPush() error {
 	registry := config.Address
 	repo := config.Repo
 	imageAddrAndName := registry + "/" + repo + "/" + t.ImageName
-	client := docker.NewDockerClient()
-	err := client.DockerPush(imageAddrAndName, registry)
+	err := t.Client.DockerPush(imageAddrAndName, registry)
 	if err != nil {
 		logrus.Error("error docker push image to the registry.")
 		return err

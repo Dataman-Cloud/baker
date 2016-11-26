@@ -295,6 +295,7 @@ func BuildpackImagePush(c *gin.Context) {
 
 	// task status collector
 	go func() {
+		logrus.Info("Collector start")
 		for {
 			select {
 			case ts := <-taskStats:
@@ -307,6 +308,10 @@ func BuildpackImagePush(c *gin.Context) {
 			}
 		}
 	}()
+	c.JSON(http.StatusOK, struct {
+		workDir string
+	}{workDir})
+
 }
 
 // copy app files, baker, run.sh, dockerfile to workspace directory
@@ -346,6 +351,7 @@ func setupImagePushWorkDir(appDir, timestamp, workDir string) error {
 func createImagePushTask(imageName, workDir string, cf *config.Config, taskStats chan int) func() {
 	taskStats <- executor.StatusStarting
 	return func() {
+		taskStats <- executor.StatusRunning
 		var err error
 		imagePushTask := executor.NewImagePushTask(imageName, workDir, &cf.DockerRegistry)
 

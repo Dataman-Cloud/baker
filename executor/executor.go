@@ -40,8 +40,12 @@ func (t *Executor) Execute() {
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Tasks))
 	for _, task := range t.Tasks {
+		work := task.Work
+		task.Work = func() {
+			defer wg.Done()
+			work()
+		}
 		t.Pool.Submit(task)
-		defer wg.Done()
 	}
 	wg.Wait()
 }
