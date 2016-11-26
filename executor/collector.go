@@ -39,13 +39,13 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 			case ts := <-c.TaskStatus:
 				TaskStatus := TaskStatusEnum[ts]
 				logrus.Infof("taskID:%s status:%s", c.TaskID, TaskStatus)
-				if ts == StatusFinished || ts == StatusFailed || ts == StatusExpired {
-					c.IsDone <- true
-				}
 				if !clientClosed {
 					ssEvent.Data = TaskStatus
 					ssEvent.Render(w)
 					w.Flush()
+				}
+				if ts == StatusFinished || ts == StatusFailed || ts == StatusExpired {
+					c.IsDone <- true
 				}
 			case tm := <-c.TaskMsg:
 				logrus.Infof("taskID:%s message:%s", c.TaskID, tm)
