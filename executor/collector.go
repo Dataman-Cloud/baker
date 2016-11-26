@@ -31,8 +31,9 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 		for {
 			select {
 			case <-clientClose:
-				clientClosed = true
 				logrus.Infof("Client closed")
+				clientClosed = true
+				break
 			case ts := <-c.TaskStatus:
 				TaskStatus := TaskStatusEnum[ts]
 				logrus.Infof("taskID:%s status:%s", c.TaskID, TaskStatus)

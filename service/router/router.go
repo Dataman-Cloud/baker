@@ -51,7 +51,7 @@ func Load(middleware ...gin.HandlerFunc) http.Handler {
 		buildpack.DELETE("/delete", api.BuildpackDel)
 		buildpack.POST("/dockerfile/push", api.BuildpackDockerfilePush)
 		buildpack.GET("/dockerfile/pull", api.BuildpackDockerfilePull)
-		buildpack.POST("/image/push", api.BuildpackImagePush)
+		buildpack.GET("/image/push", api.BuildpackImagePush)
 	}
 	return e
 }
