@@ -24,6 +24,56 @@ func NewImagePushTask(workDir, imageName string, config *config.DockerRegistry) 
 	}
 }
 
+// Create
+func (t *ImagePushTask) Create(c *Collector) func() {
+	return func() {
+		c.TaskStatus <- StatusRunning
+		var err error
+		workDir := t.WorkDir
+		imageName := t.ImageName
+		dockerRegistry := t.Config
+		imagePushTask := NewImagePushTask(workDir, imageName, dockerRegistry)
+
+		// dockerLogin
+		c.TaskStatus <- StatusDockerLoginStart
+		err = imagePushTask.DockerLogin()
+		if err != nil {
+			logrus.Error("error execute docker login.")
+			c.TaskMsg <- err.Error()
+			return
+		}
+		c.TaskStatus <- StatusDockerLoginOK
+
+		// dockerBuild
+		c.TaskStatus <- StatusDockerBuildStart
+		err = imagePushTask.DockerBuild()
+		if err != nil {
+			logrus.Error("error execute docker build.")
+			c.TaskMsg <- err.Error()
+			return
+		}
+		c.TaskStatus <- StatusDockerBuildOK
+
+		// dockerPush
+		c.TaskStatus <- StatusDockerPushStart
+		err = imagePushTask.DockerPush()
+		if err != nil {
+			logrus.Error("error execute docker push.")
+			c.TaskMsg <- err.Error()
+			return
+		}
+		c.TaskStatus <- StatusDockerPushOK
+
+		defer func() {
+			if r := recover(); r != nil {
+				c.TaskStatus <- StatusFailed
+			} else {
+				c.TaskStatus <- StatusFinished
+			}
+		}()
+	}
+}
+
 // DockerLogin
 func (t *ImagePushTask) DockerLogin() error {
 	config := t.Config

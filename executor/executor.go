@@ -6,36 +6,37 @@ import (
 
 type Executor struct {
 	Pool      *WorkPool
-	Tasks     []*Task
+	Works     []*Work
 	Collector *Collector
 }
 
-type Task struct {
+type Work struct {
 	ID   string
-	Work func()
+	Task func()
 }
 
-func NewExecutor(pool *WorkPool, tasks []*Task, collector *Collector) (*Executor, error) {
+func NewExecutor(pool *WorkPool, works []*Work, collector *Collector) (*Executor, error) {
 	return &Executor{
 		Pool:      pool,
-		Tasks:     tasks,
+		Works:     works,
 		Collector: collector,
 	}, nil
 }
 
 func (t *Executor) Execute() {
 	wg := sync.WaitGroup{}
-	wg.Add(len(t.Tasks))
-	for _, task := range t.Tasks {
-		work := task.Work
-		task.Work = func() {
+	wg.Add(len(t.Works))
+	for _, work := range t.Works {
+		task := work.Task
+		work.Task = func() {
 			defer wg.Done()
-			work()
+			task()
 		}
 		// start task collector
 		t.Collector.Start()
-		// submit task
-		t.Pool.Submit(task)
+		t.Collector.TaskStatus <- StatusStarting
+		// submit work
+		t.Pool.Submit(work)
 	}
 	wg.Wait()
 }

@@ -26,7 +26,7 @@ func (c *Collector) Start() {
 		for {
 			select {
 			case ts := <-c.TaskStatus:
-				logrus.Infof("taskID:%s status:%s", c.TaskID, ts)
+				logrus.Infof("taskID:%s status:%s", c.TaskID, TaskStatusEnum[ts])
 				if ts == StatusFinished || ts == StatusFailed || ts == StatusExpired {
 					c.IsDone <- true
 				}
