@@ -281,14 +281,14 @@ func BuildpackImagePush(c *gin.Context) {
 	isDone := make(chan bool)
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
 	taskCollector := executor.NewCollector(taskID, taskStatus, taskMsg, isDone)
-	work := createImagePushWork(imagePushTask, taskCollector)
+	task := imagePushTask.Create(taskCollector)
 
-	tasks := make([]*executor.Task, 1)
-	tasks[0] = &executor.Task{
+	works := make([]*executor.Work, 1)
+	works[0] = &executor.Work{
 		ID:   taskID,
-		Work: work,
+		Task: task,
 	}
-	taskExec, err := executor.NewExecutor(bakeWorkPool, tasks, taskCollector)
+	taskExec, err := executor.NewExecutor(bakeWorkPool, works, taskCollector)
 	if err != nil {
 		logrus.Error("error create job executor.")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -333,48 +333,4 @@ func setupImagePushWorkDir(appDir, timestamp, workDir string) error {
 		return err
 	}
 	return nil
-}
-
-// create ImagePushWork
-func createImagePushWork(t *executor.ImagePushTask, c *executor.Collector) func() {
-	return func() {
-		c.TaskStatus <- executor.StatusRunning
-		var err error
-		workDir := t.WorkDir
-		imageName := t.ImageName
-		dockerRegistry := t.Config
-		imagePushTask := executor.NewImagePushTask(workDir, imageName, dockerRegistry)
-
-		// dockerLogin
-		err = imagePushTask.DockerLogin()
-		if err != nil {
-			logrus.Error("error execute docker login.")
-			c.TaskMsg <- err.Error()
-			return
-		}
-
-		// dockerBuild
-		err = imagePushTask.DockerBuild()
-		if err != nil {
-			logrus.Error("error execute docker build.")
-			c.TaskMsg <- err.Error()
-			return
-		}
-
-		// dockerPush
-		err = imagePushTask.DockerPush()
-		if err != nil {
-			logrus.Error("error execute docker push.")
-			c.TaskMsg <- err.Error()
-			return
-		}
-
-		defer func() {
-			if r := recover(); r != nil {
-				c.TaskStatus <- executor.StatusFailed
-			} else {
-				c.TaskStatus <- executor.StatusFinished
-			}
-		}()
-	}
 }
