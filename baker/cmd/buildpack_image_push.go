@@ -55,7 +55,7 @@ func buildpackImagePush(c *cli.Context) error {
 	// image push.
 	logrus.Infof("app image push in baker server: %s", appName)
 	uri := "http://" + baseUri + "/api/buildpack/image/push?name=" + appName + "&timestamp=" + timestamp
-	req, err := http.NewRequest("POST", uri, nil)
+	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		logrus.Fatalf("error create image push request: %s", err)
 		return err
@@ -78,6 +78,13 @@ func buildpackImagePush(c *cli.Context) error {
 		if strings.Index(s, "CLOSE") >= 0 || strings.Index(s, "ERROR") >= 0 {
 			break
 		}
+	}
+	tr, ok := httpClient.Transport.(*http.Transport)
+	if !ok {
+		logrus.Error("sse/close: could not cast httpclient transport")
+	} else {
+		logrus.Error("sse/close: second cancel")
+		tr.CancelRequest(req)
 	}
 	return nil
 }
