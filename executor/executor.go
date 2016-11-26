@@ -15,22 +15,6 @@ type Task struct {
 	Work func()
 }
 
-const (
-	StatusStarting = 0
-	StatusRunning  = 1
-	StatusFailed   = 2
-	StatusExpired  = 3
-	StatusFinished = 4
-)
-
-var TaskStatusEnum = map[int]string{
-	StatusStarting: "Starting",
-	StatusRunning:  "Running",
-	StatusFailed:   "Failed",
-	StatusExpired:  "Expired",
-	StatusFinished: "Finished",
-}
-
 func NewExecutor(pool *WorkPool, tasks []*Task, collector *Collector) (*Executor, error) {
 	return &Executor{
 		Pool:      pool,

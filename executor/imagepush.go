@@ -7,24 +7,6 @@ import (
 	"github.com/Dataman-Cloud/baker/external/docker"
 )
 
-const (
-	StatusDockerLoginStart = 10
-	StatusDockerLoginOK    = 11
-	StatusDockerBuildStart = 12
-	StatusDockerBuildOK    = 13
-	StatusDockerPushStart  = 14
-	StatusDockerPushOK     = 15
-)
-
-var ImagePushTaskStatusEnuma = map[int]string{
-	StatusDockerLoginStart: "DockerLoginStart",
-	StatusDockerLoginOK:    "DockerLoginOK",
-	StatusDockerBuildStart: "DockerBuildStart",
-	StatusDockerBuildOK:    "DockerBuildOK",
-	StatusDockerPushStart:  "DockerPushStart",
-	StatusDockerPushOK:     "DockerPushOK",
-}
-
 type ImagePushTask struct {
 	WorkDir   string
 	ImageName string
