@@ -276,12 +276,9 @@ func BuildpackImagePush(c *gin.Context) {
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
-	taskStatus := make(chan int)
-	defer close(taskStatus)
+	taskStatus := make(chan int) // channel per server, not context? Please fix me.
 	taskMsg := make(chan string)
-	defer close(taskMsg)
 	isDone := make(chan bool)
-	defer close(isDone)
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
 	taskCollector := executor.NewCollector(taskID, taskStatus, taskMsg, isDone)
 	task := imagePushTask.Create(taskCollector)
