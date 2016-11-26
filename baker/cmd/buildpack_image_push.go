@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -52,6 +54,13 @@ func buildpackImagePush(c *cli.Context) error {
 		logrus.Fatalf("erro login baker server: %s", err)
 		return err
 	}
+	// interupt
+	var interupt = make(chan os.Signal)
+	signal.Notify(interupt, os.Interrupt, os.Kill)
+	go func() {
+		<-interupt
+		logrus.Fatal("Interupt")
+	}()
 	// image push.
 	logrus.Infof("app image push in baker server: %s", appName)
 	uri := "http://" + baseUri + "/api/buildpack/image/push?name=" + appName + "&timestamp=" + timestamp
