@@ -7,15 +7,24 @@ import (
 	"github.com/Dataman-Cloud/baker/external/docker"
 )
 
+const (
+	StatusDockerLoginStart = 5
+	StatusDockerLoginOK    = 6
+	StatusDockerBuildStart = 7
+	StatusDockerBuildOK    = 8
+	StatusDockerPushStart  = 9
+	StatusDockerPushOK     = 10
+)
+
 type ImagePushTask struct {
-	Client    *docker.DockerClient
-	Config    *config.DockerRegistry
-	ImageName string
 	WorkDir   string
+	ImageName string
+	Config    *config.DockerRegistry
+	Client    *docker.DockerClient
 }
 
 // NewImagePushTask is a task to do build image and push image to registry
-func NewImagePushTask(imageName, workDir string, config *config.DockerRegistry) *ImagePushTask {
+func NewImagePushTask(workDir, imageName string, config *config.DockerRegistry) *ImagePushTask {
 	return &ImagePushTask{
 		Client:    docker.NewDockerClient(),
 		Config:    config,
