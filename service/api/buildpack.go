@@ -277,8 +277,11 @@ func BuildpackImagePush(c *gin.Context) {
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
 	taskStatus := make(chan int)
+	defer close(taskStatus)
 	taskMsg := make(chan string)
+	defer close(taskMsg)
 	isDone := make(chan bool)
+	defer close(isDone)
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
 	taskCollector := executor.NewCollector(taskID, taskStatus, taskMsg, isDone)
 	task := imagePushTask.Create(taskCollector)

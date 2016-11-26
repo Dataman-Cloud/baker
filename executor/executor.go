@@ -24,6 +24,7 @@ func NewExecutor(pool *WorkPool, works []*Work, collector *Collector) (*Executor
 }
 
 func (t *Executor) Execute() {
+	// defer t.Pool.Stop() // stop pool in baker server stop.
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Works))
 	for _, work := range t.Works {
