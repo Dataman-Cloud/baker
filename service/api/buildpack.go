@@ -279,9 +279,8 @@ func BuildpackImagePush(c *gin.Context) {
 	imageName := appName + ":" + timestamp
 	taskStatus := make(chan int) // channel per server, not context
 	taskMsg := make(chan string)
-	isDone := make(chan bool)
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
-	collector := executor.NewCollector(taskID, taskStatus, taskMsg, isDone)
+	collector := executor.NewCollector(taskID, taskStatus, taskMsg)
 	task := imagePushTask.Create(collector)
 
 	works := make([]*executor.Work, 1)
@@ -301,11 +300,6 @@ func BuildpackImagePush(c *gin.Context) {
 	collector.TaskStatus <- executor.StatusStarting
 	// task execute
 	taskExec.Execute()
-
-	//c.JSON(http.StatusOK, struct {
-	//	WorkDir string
-	//}{workDir})
-
 }
 
 // copy app files, baker, run.sh, dockerfile to workspace directory
