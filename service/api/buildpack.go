@@ -272,20 +272,23 @@ func BuildpackImagePush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 	}
 
-	// execute an executer to imagepush.
+	//create an executer to imagepush.
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
 	taskStats := make(chan int)
+	taskMsg := make(chan string)
 	isDone := make(chan bool)
-	work := createImagePushTask(imageName, workDir, cf, taskStats)
+	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
+	taskCollector := executor.NewCollector(taskID, taskStats, taskMsg, isDone)
+	work := createImagePushWork(imagePushTask, taskCollector)
 
 	tasks := make([]*executor.Task, 1)
 	tasks[0] = &executor.Task{
 		ID:   taskID,
 		Work: work,
 	}
-	taskExec, err := executor.NewExecutor(bakeWorkPool, tasks)
+	taskExec, err := executor.NewExecutor(bakeWorkPool, tasks, taskCollector)
 	if err != nil {
 		logrus.Error("error create job executor.")
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -293,23 +296,8 @@ func BuildpackImagePush(c *gin.Context) {
 	}
 	taskExec.Execute()
 
-	// task status collector
-	go func() {
-		logrus.Info("Collector start")
-		for {
-			select {
-			case ts := <-taskStats:
-				logrus.Info("taskID:%s status:%s", taskID, ts)
-				if ts == executor.StatusFinished || ts == executor.StatusFailed || ts == executor.StatusExpired {
-					isDone <- true
-				}
-			case <-isDone:
-				break
-			}
-		}
-	}()
 	c.JSON(http.StatusOK, struct {
-		workDir string
+		WorkDir string
 	}{workDir})
 
 }
@@ -347,19 +335,21 @@ func setupImagePushWorkDir(appDir, timestamp, workDir string) error {
 	return nil
 }
 
-// create ImagePushTask
-func createImagePushTask(imageName, workDir string, cf *config.Config, taskStats chan int) func() {
-	taskStats <- executor.StatusStarting
+// create ImagePushWork
+func createImagePushWork(t *executor.ImagePushTask, c *executor.Collector) func() {
 	return func() {
-		taskStats <- executor.StatusRunning
+		c.TaskStats <- executor.StatusRunning
 		var err error
-		imagePushTask := executor.NewImagePushTask(imageName, workDir, &cf.DockerRegistry)
+		workDir := t.WorkDir
+		imageName := t.ImageName
+		dockerRegistry := t.Config
+		imagePushTask := executor.NewImagePushTask(workDir, imageName, dockerRegistry)
 
 		// dockerLogin
 		err = imagePushTask.DockerLogin()
 		if err != nil {
 			logrus.Error("error execute docker login.")
-			//	c.AbortWithError(http.StatusBadRequest, err)
+			c.TaskMsg <- err.Error()
 			return
 		}
 
@@ -367,7 +357,7 @@ func createImagePushTask(imageName, workDir string, cf *config.Config, taskStats
 		err = imagePushTask.DockerBuild()
 		if err != nil {
 			logrus.Error("error execute docker build.")
-			//	c.AbortWithError(http.StatusBadRequest, err)
+			c.TaskMsg <- err.Error()
 			return
 		}
 
@@ -375,15 +365,15 @@ func createImagePushTask(imageName, workDir string, cf *config.Config, taskStats
 		err = imagePushTask.DockerPush()
 		if err != nil {
 			logrus.Error("error execute docker push.")
-			//	c.AbortWithError(http.StatusBadRequest, err)
+			c.TaskMsg <- err.Error()
 			return
 		}
 
 		defer func() {
 			if r := recover(); r != nil {
-				taskStats <- executor.StatusFailed
+				c.TaskStats <- executor.StatusFailed
 			} else {
-				taskStats <- executor.StatusFinished
+				c.TaskStats <- executor.StatusFinished
 			}
 		}()
 	}
