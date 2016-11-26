@@ -14,6 +14,7 @@ import (
 	"github.com/Dataman-Cloud/baker/util"
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/manucorporat/sse"
 
 	"github.com/Dataman-Cloud/baker/executor"
 )
@@ -276,29 +277,34 @@ func BuildpackImagePush(c *gin.Context) {
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
-	taskStatus := make(chan int) // channel per server, not context? Please fix me.
+	taskStatus := make(chan int) // channel per server, not context
 	taskMsg := make(chan string)
 	isDone := make(chan bool)
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
-	taskCollector := executor.NewCollector(taskID, taskStatus, taskMsg, isDone)
-	task := imagePushTask.Create(taskCollector)
+	collector := executor.NewCollector(taskID, taskStatus, taskMsg, isDone)
+	task := imagePushTask.Create(collector)
 
 	works := make([]*executor.Work, 1)
 	works[0] = &executor.Work{
 		ID:   taskID,
 		Task: task,
 	}
-	taskExec, err := executor.NewExecutor(bakeWorkPool, works, taskCollector)
+	taskExec, err := executor.NewExecutor(bakeWorkPool, works, collector)
 	if err != nil {
 		logrus.Error("error create job executor.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	// stream
+	ssEvent := &sse.Event{Event: "task-status"}
+	collector.Stream(c, ssEvent)
+	collector.TaskStatus <- executor.StatusStarting
+	// task execute
 	taskExec.Execute()
 
-	c.JSON(http.StatusOK, struct {
-		WorkDir string
-	}{workDir})
+	//c.JSON(http.StatusOK, struct {
+	//	WorkDir string
+	//}{workDir})
 
 }
 
