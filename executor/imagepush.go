@@ -8,13 +8,22 @@ import (
 )
 
 const (
-	StatusDockerLoginStart = 5
-	StatusDockerLoginOK    = 6
-	StatusDockerBuildStart = 7
-	StatusDockerBuildOK    = 8
-	StatusDockerPushStart  = 9
-	StatusDockerPushOK     = 10
+	StatusDockerLoginStart = 10
+	StatusDockerLoginOK    = 11
+	StatusDockerBuildStart = 12
+	StatusDockerBuildOK    = 13
+	StatusDockerPushStart  = 14
+	StatusDockerPushOK     = 15
 )
+
+var ImagePushTaskStatusEnuma = map[int]string{
+	StatusDockerLoginStart: "DockerLoginStart",
+	StatusDockerLoginOK:    "DockerLoginOK",
+	StatusDockerBuildStart: "DockerBuildStart",
+	StatusDockerBuildOK:    "DockerBuildOK",
+	StatusDockerPushStart:  "DockerPushStart",
+	StatusDockerPushOK:     "DockerPushOK",
+}
 
 type ImagePushTask struct {
 	WorkDir   string

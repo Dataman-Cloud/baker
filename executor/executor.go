@@ -23,6 +23,14 @@ const (
 	StatusFinished = 4
 )
 
+var TaskStatusEnum = map[int]string{
+	StatusStarting: "Starting",
+	StatusRunning:  "Running",
+	StatusFailed:   "Failed",
+	StatusExpired:  "Expired",
+	StatusFinished: "Finished",
+}
+
 func NewExecutor(pool *WorkPool, tasks []*Task, collector *Collector) (*Executor, error) {
 	return &Executor{
 		Pool:      pool,
@@ -42,6 +50,8 @@ func (t *Executor) Execute() {
 		}
 		// start task collector
 		t.Collector.Start()
+		// submit task
+		t.Pool.Submit(task)
 	}
 	wg.Wait()
 }
