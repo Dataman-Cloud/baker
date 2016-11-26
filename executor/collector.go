@@ -39,3 +39,7 @@ func (c *Collector) Start() {
 		}
 	}()
 }
+
+func (c *Collector) stream() {
+
+}
