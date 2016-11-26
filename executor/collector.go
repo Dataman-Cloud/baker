@@ -32,6 +32,7 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 			select {
 			case <-clientClose:
 				logrus.Infof("Close Nodify")
+				return
 			case ts := <-c.TaskStatus:
 				TaskStatus := TaskStatusEnum[ts]
 				logrus.Infof("taskID:%s status:%s", c.TaskID, TaskStatus)
@@ -46,9 +47,9 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 			case tm := <-c.TaskMsg:
 				logrus.Infof("taskID:%s message:%s", c.TaskID, tm)
 				ctx.AbortWithError(http.StatusBadRequest, errors.New(tm))
-				//	ssEvent.Data = "taskID:" + c.TaskID + " " + "message" + tm
-				//	ssEvent.Render(w)
-				//	w.Flush()
+				ssEvent.Data = "CLOSE-WITH-ERROR:" + "taskID:" + c.TaskID + " " + "message" + tm
+				ssEvent.Render(w)
+				w.Flush()
 			}
 		}
 	}()
