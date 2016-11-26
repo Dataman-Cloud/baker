@@ -1,9 +1,6 @@
 package executor
 
 import (
-	"errors"
-	"net/http"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 	"github.com/manucorporat/sse"
@@ -52,7 +49,7 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 				}
 			case tm := <-c.TaskMsg:
 				logrus.Infof("taskID:%s message:%s", c.TaskID, tm)
-				ssEvent.Data = "ERROR " + errors.New(tm)
+				ssEvent.Data = "ERROR " + tm
 				ssEvent.Render(w)
 				w.Flush()
 				//ctx.AbortWithError(http.StatusBadRequest, errors.New(tm))
