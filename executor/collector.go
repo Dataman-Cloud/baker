@@ -45,6 +45,9 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 					w.Flush()
 				}
 				if ts == StatusFinished || ts == StatusFailed || ts == StatusExpired {
+					ssEvent.Data = "CLOSE"
+					ssEvent.Render(w)
+					w.Flush()
 					c.IsDone <- true
 				}
 			case tm := <-c.TaskMsg:
