@@ -2,6 +2,7 @@ package executor
 
 import (
 	"errors"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 
@@ -29,9 +30,7 @@ func NewImagePushTask(workDir, imageName string, config *config.DockerRegistry) 
 // Create
 func (t *ImagePushTask) Create(c *Collector) func() {
 	return func() {
-		taskStatus := &TaskStatus{}
-		taskStatus.StatusCode = StatusRunning
-		c.TaskStatus <- taskStatus
+		c.TaskStats <- &TaskStats{Code: StatusRunning}
 		var err error
 		workDir := t.WorkDir
 		imageName := t.ImageName
@@ -39,51 +38,40 @@ func (t *ImagePushTask) Create(c *Collector) func() {
 		imagePushTask := NewImagePushTask(workDir, imageName, dockerRegistry)
 
 		// dockerLogin
-		taskStatus.StatusCode = StatusDockerLoginStart
-		c.TaskStatus <- taskStatus
+		c.TaskStats <- &TaskStats{Code: StatusDockerLoginStart}
 		err = imagePushTask.DockerLogin()
 		if err != nil {
-			taskStatus.StatusCode = StatusFailed
-			taskStatus.Message = err.Error()
-			c.TaskStatus <- taskStatus
+			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
+			time.Sleep(5 * time.Millisecond) // wait for handle err.
 			return
 		}
-		taskStatus.StatusCode = StatusDockerLoginOK
-		c.TaskStatus <- taskStatus
+		c.TaskStats <- &TaskStats{Code: StatusDockerLoginOK}
 
 		// dockerBuild
-		taskStatus.StatusCode = StatusDockerBuildStart
-		c.TaskStatus <- taskStatus
+		c.TaskStats <- &TaskStats{Code: StatusDockerBuildStart}
 		err = imagePushTask.DockerBuild()
 		if err != nil {
-			taskStatus.StatusCode = StatusFailed
-			taskStatus.Message = err.Error()
-			c.TaskStatus <- taskStatus
+			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
+			time.Sleep(5 * time.Millisecond) // wait for handle err.
 			return
 		}
-		taskStatus.StatusCode = StatusDockerBuildOK
-		c.TaskStatus <- taskStatus
+		c.TaskStats <- &TaskStats{Code: StatusDockerBuildOK}
 
 		// dockerPush
-		taskStatus.StatusCode = StatusDockerPushStart
-		c.TaskStatus <- taskStatus
+		c.TaskStats <- &TaskStats{Code: StatusDockerPushStart}
 		err = imagePushTask.DockerPush()
 		if err != nil {
-			taskStatus.StatusCode = StatusFailed
-			taskStatus.Message = err.Error()
-			c.TaskStatus <- taskStatus
+			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
+			time.Sleep(5 * time.Millisecond) // wait for handle err.
 			return
 		}
-		taskStatus.StatusCode = StatusDockerPushOK
-		c.TaskStatus <- taskStatus
+		c.TaskStats <- &TaskStats{Code: StatusDockerPushOK}
 
 		defer func() {
 			if r := recover(); r != nil {
-				taskStatus.StatusCode = StatusFailed
-				c.TaskStatus <- taskStatus
+				c.TaskStats <- &TaskStats{Code: StatusFailed}
 			} else {
-				taskStatus.StatusCode = StatusFinished
-				c.TaskStatus <- taskStatus
+				c.TaskStats <- &TaskStats{Code: StatusFinished}
 			}
 		}()
 	}

@@ -276,9 +276,9 @@ func BuildpackImagePush(c *gin.Context) {
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
-	taskStatus := make(chan *executor.TaskStatus) // channel per server, not context
+	taskStats := make(chan *executor.TaskStats) // channel per server, not context
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
-	collector := executor.NewCollector(taskID, taskStatus)
+	collector := executor.NewCollector(taskID, taskStats)
 	task := imagePushTask.Create(collector)
 
 	works := make([]*executor.Work, 1)
@@ -294,7 +294,7 @@ func BuildpackImagePush(c *gin.Context) {
 	}
 	// stream
 	collector.Stream(c)
-	collector.TaskStatus <- &executor.TaskStatus{StatusCode: executor.StatusStarting}
+	collector.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
 	// task execute
 	taskExec.Execute()
 }
