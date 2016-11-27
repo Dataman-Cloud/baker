@@ -14,7 +14,6 @@ import (
 	"github.com/Dataman-Cloud/baker/util"
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
-	"github.com/manucorporat/sse"
 
 	"github.com/Dataman-Cloud/baker/executor"
 )
@@ -277,10 +276,9 @@ func BuildpackImagePush(c *gin.Context) {
 	cf := c.MustGet("config").(*config.Config)
 	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
-	taskStatus := make(chan int) // channel per server, not context
-	taskMsg := make(chan string)
+	taskStatus := make(chan *executor.TaskStatus) // channel per server, not context
 	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
-	collector := executor.NewCollector(taskID, taskStatus, taskMsg)
+	collector := executor.NewCollector(taskID, taskStatus)
 	task := imagePushTask.Create(collector)
 
 	works := make([]*executor.Work, 1)
@@ -295,9 +293,8 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	// stream
-	ssEvent := &sse.Event{Event: "task-status"}
-	collector.Stream(c, ssEvent)
-	collector.TaskStatus <- executor.StatusStarting
+	collector.Stream(c)
+	collector.TaskStatus <- &executor.TaskStatus{StatusCode: executor.StatusStarting}
 	// task execute
 	taskExec.Execute()
 }

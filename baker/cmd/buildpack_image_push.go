@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -56,7 +57,7 @@ func buildpackImagePush(c *cli.Context) error {
 	}
 	// interupt
 	var interupt = make(chan os.Signal)
-	signal.Notify(interupt, os.Interrupt, os.Kill)
+	signal.Notify(interupt, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTSTP)
 	go func() {
 		<-interupt
 		logrus.Fatal("Interupt")
