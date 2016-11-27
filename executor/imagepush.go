@@ -39,7 +39,7 @@ func (t *ImagePushTask) Create(c *Collector) func() {
 		imagePushTask := NewImagePushTask(workDir, imageName, dockerRegistry)
 
 		// dockerLogin
-		taskStatus.StatusCode = StatusDockerLoginOK
+		taskStatus.StatusCode = StatusDockerLoginStart
 		c.TaskStatus <- taskStatus
 		err = imagePushTask.DockerLogin()
 		if err != nil {
@@ -78,7 +78,10 @@ func (t *ImagePushTask) Create(c *Collector) func() {
 		c.TaskStatus <- taskStatus
 
 		defer func() {
-			if r := recover(); r == nil {
+			if r := recover(); r != nil {
+				taskStatus.StatusCode = StatusFailed
+				c.TaskStatus <- taskStatus
+			} else {
 				taskStatus.StatusCode = StatusFinished
 				c.TaskStatus <- taskStatus
 			}
