@@ -34,7 +34,7 @@ func (c *Collector) Stream(ctx *gin.Context) {
 		for {
 			select {
 			case <-clientClose:
-				logrus.Infof("Close Nodify")
+				logrus.Infof("Close Nodify") // nothing to do.
 			case ts := <-c.TaskStats:
 				var data string
 				status := TaskStatusEnum[ts.Code]
