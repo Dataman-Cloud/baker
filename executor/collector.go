@@ -1,8 +1,8 @@
 package executor
 
 import (
-	"errors"
-	"net/http"
+	_ "errors"
+	_ "net/http"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
@@ -11,19 +11,22 @@ import (
 
 type Collector struct {
 	TaskID     string
-	TaskStatus chan int
-	TaskMsg    chan string
+	TaskStatus chan *TaskStatus
 }
 
-func NewCollector(taskID string, taskStatus chan int, taskMsg chan string) *Collector {
+type TaskStatus struct {
+	StatusCode int
+	Message    string
+}
+
+func NewCollector(taskID string, taskStatus chan *TaskStatus) *Collector {
 	return &Collector{
 		TaskID:     taskID,
 		TaskStatus: taskStatus,
-		TaskMsg:    taskMsg,
 	}
 }
 
-func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
+func (c *Collector) Stream(ctx *gin.Context) {
 	w := ctx.Writer
 	clientClose := w.CloseNotify()
 	go func() {
@@ -34,22 +37,15 @@ func (c *Collector) Stream(ctx *gin.Context, ssEvent *sse.Event) {
 				logrus.Infof("Close Nodify")
 				return
 			case ts := <-c.TaskStatus:
-				TaskStatus := TaskStatusEnum[ts]
-				logrus.Infof("taskID:%s status:%s", c.TaskID, TaskStatus)
-				ssEvent.Data = "taskID:" + c.TaskID + " " + "status:" + TaskStatus
-				ssEvent.Render(w)
-				w.Flush()
-				if ts == StatusFinished || ts == StatusFailed || ts == StatusExpired {
-					ssEvent.Data = "CLOSE"
-					ssEvent.Render(w)
-					w.Flush()
+				var data string
+				status := TaskStatusEnum[ts.StatusCode]
+				logrus.Infof("taskID:%s status:%s message:%s", c.TaskID, status, ts.Message)
+				data = "taskID:" + c.TaskID + " " + "status:" + status + "message:" + ts.Message
+				sse.Encode(w, sse.Event{Event: "task-status", Data: data})
+				if ts.StatusCode == StatusFinished || ts.StatusCode == StatusFailed || ts.StatusCode == StatusExpired {
+					data = "CLOSE"
+					sse.Encode(w, sse.Event{Event: "task-status", Data: data})
 				}
-			case tm := <-c.TaskMsg:
-				logrus.Infof("taskID:%s message:%s", c.TaskID, tm)
-				ctx.AbortWithError(http.StatusBadRequest, errors.New(tm))
-				ssEvent.Data = "CLOSE-WITH-ERROR:" + "taskID:" + c.TaskID + " " + "message" + tm
-				ssEvent.Render(w)
-				w.Flush()
 			}
 		}
 	}()

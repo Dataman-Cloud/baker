@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"errors"
+
 	"github.com/Sirupsen/logrus"
 
 	"github.com/Dataman-Cloud/baker/config"
@@ -27,7 +29,9 @@ func NewImagePushTask(workDir, imageName string, config *config.DockerRegistry) 
 // Create
 func (t *ImagePushTask) Create(c *Collector) func() {
 	return func() {
-		c.TaskStatus <- StatusRunning
+		taskStatus := &TaskStatus{}
+		taskStatus.StatusCode = StatusRunning
+		c.TaskStatus <- taskStatus
 		var err error
 		workDir := t.WorkDir
 		imageName := t.ImageName
@@ -35,40 +39,54 @@ func (t *ImagePushTask) Create(c *Collector) func() {
 		imagePushTask := NewImagePushTask(workDir, imageName, dockerRegistry)
 
 		// dockerLogin
-		c.TaskStatus <- StatusDockerLoginStart
+		taskStatus.StatusCode = StatusDockerLoginOK
+		c.TaskStatus <- taskStatus
 		err = imagePushTask.DockerLogin()
 		if err != nil {
 			logrus.Error("error execute docker login.")
-			c.TaskMsg <- err.Error()
+			taskStatus.StatusCode = StatusFailed
+			taskStatus.Message = err.Error()
+			c.TaskStatus <- taskStatus
 			return
 		}
-		c.TaskStatus <- StatusDockerLoginOK
+		taskStatus.StatusCode = StatusDockerLoginOK
+		c.TaskStatus <- taskStatus
 
 		// dockerBuild
-		c.TaskStatus <- StatusDockerBuildStart
+		taskStatus.StatusCode = StatusDockerBuildStart
+		c.TaskStatus <- taskStatus
 		err = imagePushTask.DockerBuild()
 		if err != nil {
 			logrus.Error("error execute docker build.")
-			c.TaskMsg <- err.Error()
+			taskStatus.StatusCode = StatusFailed
+			taskStatus.Message = err.Error()
+			c.TaskStatus <- taskStatus
 			return
 		}
-		c.TaskStatus <- StatusDockerBuildOK
+		taskStatus.StatusCode = StatusDockerBuildOK
+		c.TaskStatus <- taskStatus
 
 		// dockerPush
-		c.TaskStatus <- StatusDockerPushStart
+		taskStatus.StatusCode = StatusDockerPushStart
+		c.TaskStatus <- taskStatus
 		err = imagePushTask.DockerPush()
 		if err != nil {
 			logrus.Error("error execute docker push.")
-			c.TaskMsg <- err.Error()
+			taskStatus.StatusCode = StatusFailed
+			taskStatus.Message = err.Error()
+			c.TaskStatus <- taskStatus
 			return
 		}
-		c.TaskStatus <- StatusDockerPushOK
+		taskStatus.StatusCode = StatusDockerPushOK
+		c.TaskStatus <- taskStatus
 
 		defer func() {
 			if r := recover(); r != nil {
-				c.TaskStatus <- StatusFailed
+				taskStatus.StatusCode = StatusFailed
+				c.TaskStatus <- taskStatus
 			} else {
-				c.TaskStatus <- StatusFinished
+				taskStatus.StatusCode = StatusFinished
+				c.TaskStatus <- taskStatus
 			}
 		}()
 	}
@@ -98,7 +116,8 @@ func (t *ImagePushTask) DockerBuild() error {
 		logrus.Error("error build image from dockerfile.")
 		return err
 	}
-	return nil
+	return errors.New("ERROR") // debug
+	//return nil
 }
 
 // DockerPush
