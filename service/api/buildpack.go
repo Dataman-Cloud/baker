@@ -297,6 +297,7 @@ func BuildpackImagePush(c *gin.Context) {
 	collector.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
 	// task execute
 	taskExec.Execute()
+	time.Sleep(3 * time.Millisecond) // wait for handle err. a little bit urgly. Please fix me.
 }
 
 // copy app files, baker, run.sh, dockerfile to workspace directory
