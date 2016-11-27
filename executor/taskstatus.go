@@ -7,6 +7,7 @@ const (
 	StatusFailed   = 2
 	StatusExpired  = 3
 	StatusFinished = 4
+	StatusClosed   = 5
 	// ImagePushTask status.
 	StatusDockerLoginStart = 10
 	StatusDockerLoginOK    = 11
@@ -22,6 +23,7 @@ var TaskStatusEnum = map[int]string{
 	StatusFailed:   "Failed",
 	StatusExpired:  "Expired",
 	StatusFinished: "Finished",
+	StatusClosed:   "Closed",
 	// ImagePushTask status map.
 	StatusDockerLoginStart: "DockerLoginStart",
 	StatusDockerLoginOK:    "DockerLoginOK",

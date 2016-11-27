@@ -47,9 +47,11 @@ func (c *Collector) Stream(ctx *gin.Context) {
 					data = "taskID:" + c.TaskID + " " + "status:" + status
 				}
 				sse.Encode(w, sse.Event{Event: "task-status", Data: data})
+				w.Flush()
 				if ts.Code == StatusFinished || ts.Code == StatusFailed || ts.Code == StatusExpired {
 					data = "CLOSE"
 					sse.Encode(w, sse.Event{Event: "task-status", Data: data})
+					w.Flush()
 				}
 			}
 		}

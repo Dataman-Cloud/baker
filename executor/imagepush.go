@@ -1,9 +1,6 @@
 package executor
 
 import (
-	"errors"
-	"time"
-
 	"github.com/Sirupsen/logrus"
 
 	"github.com/Dataman-Cloud/baker/config"
@@ -42,7 +39,6 @@ func (t *ImagePushTask) Create(c *Collector) func() {
 		err = imagePushTask.DockerLogin()
 		if err != nil {
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
-			time.Sleep(5 * time.Millisecond) // wait for handle err.
 			return
 		}
 		c.TaskStats <- &TaskStats{Code: StatusDockerLoginOK}
@@ -52,7 +48,6 @@ func (t *ImagePushTask) Create(c *Collector) func() {
 		err = imagePushTask.DockerBuild()
 		if err != nil {
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
-			time.Sleep(5 * time.Millisecond) // wait for handle err.
 			return
 		}
 		c.TaskStats <- &TaskStats{Code: StatusDockerBuildOK}
@@ -62,7 +57,6 @@ func (t *ImagePushTask) Create(c *Collector) func() {
 		err = imagePushTask.DockerPush()
 		if err != nil {
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
-			time.Sleep(5 * time.Millisecond) // wait for handle err.
 			return
 		}
 		c.TaskStats <- &TaskStats{Code: StatusDockerPushOK}
@@ -101,8 +95,7 @@ func (t *ImagePushTask) DockerBuild() error {
 		logrus.Error("error build image from dockerfile.")
 		return err
 	}
-	return errors.New("ERROR") // debug
-	//return nil
+	return nil
 }
 
 // DockerPush
