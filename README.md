@@ -13,8 +13,6 @@ Schedule in December:
 
 	* add timeout strategy in task executing.
 	* no handler for event writer.CloseNotify().
-	* need to enhance to method BuildpackImagePush(）which use time.Sleep() to wait for err handling.
-	* taskStats channel in BuildpackImagePush is per server or per each http.request context? need to close? 
 
 4. complete Unit-test
 5. complete baker UI desgin, refer to Spinnaker and Travis.
