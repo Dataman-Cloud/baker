@@ -54,7 +54,7 @@ func (t *ImagePush) DockerLogin(c *Collector) func() {
 			logrus.Error("error docker login to the registry.")
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
-		c.TaskStats <- &TaskStats{Code: StatusDockerLoginStart}
+		c.TaskStats <- &TaskStats{Code: StatusDockerLoginOK}
 	}
 }
 
