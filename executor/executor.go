@@ -6,13 +6,13 @@ import (
 
 type Executor struct {
 	Pool      *WorkPool
-	Works     []*Work
+	Works     []*Work // Workpool.
 	Collector *Collector
 }
 
 type Work struct {
-	ID   string
-	Task func()
+	ID    string
+	Tasks []func()
 }
 
 func NewExecutor(pool *WorkPool, works []*Work, collector *Collector) (*Executor, error) {
@@ -28,13 +28,15 @@ func (t *Executor) Execute() {
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Works))
 	for _, work := range t.Works {
-		task := work.Task
-		work.Task = func() {
+		tasks := work.Tasks
+		w := func() {
 			defer wg.Done()
-			task()
+			for _, task := range tasks {
+				task()
+			}
 		}
 		// submit work
-		t.Pool.Submit(work)
+		t.Pool.Submit(w)
 	}
 	wg.Wait()
 }

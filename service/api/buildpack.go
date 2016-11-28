@@ -263,39 +263,45 @@ func BuildpackImagePush(c *gin.Context) {
 	timestamp := c.Query("timestamp")
 
 	appDir := appfilesDir + "/" + appName
-	taskID := strconv.FormatInt(time.Now().Unix(), 10)
-	workDir := workspaceDir + "/" + taskID
+	workID := strconv.FormatInt(time.Now().Unix(), 10)
+	workDir := workspaceDir + "/" + workID
 
 	// setup imagepush workspace directory.
 	err := setupImagePushWorkDir(appDir, timestamp, workDir)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
+		return
 	}
 
-	//create an executer to imagepush.
+	// execute imagepush.
 	cf := c.MustGet("config").(*config.Config)
-	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
 	imageName := appName + ":" + timestamp
+	imagePush := executor.NewImagePush(workDir, imageName, &cf.DockerRegistry) // new imagepush task.
+	// create task collector.
+	taskID := workID // a task per work.
 	taskStats := make(chan *executor.TaskStats)
-	imagePushTask := executor.NewImagePushTask(workDir, imageName, &cf.DockerRegistry)
-	collector := executor.NewCollector(taskID, taskStats)
-	task := imagePushTask.Create(collector)
+	cl := executor.NewCollector(taskID, taskStats)
+	// create work.
 	works := make([]*executor.Work, 1)
 	works[0] = &executor.Work{
-		ID:   taskID,
-		Task: task,
+		ID: workID,
+		Tasks: []func(){imagePush.Before(cl),
+			imagePush.DockerLogin(cl),
+			imagePush.DockerBuild(cl),
+			imagePush.DockerPush(cl),
+			imagePush.After(cl)},
 	}
-	taskExec, err := executor.NewExecutor(bakeWorkPool, works, collector)
+	// get workpool.
+	bakeWorkPool := c.MustGet("bakeworkpool").(*executor.WorkPool)
+	workExec, err := executor.NewExecutor(bakeWorkPool, works, cl) // create executor.
 	if err != nil {
 		logrus.Error("error create job executor.")
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	// stream
-	isClose := collector.Stream(c)
-	collector.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
-	// task execute
-	go taskExec.Execute()
+	go workExec.Execute()   // execute work.
+	isClose := cl.Stream(c) // stream
+	cl.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
 	// close channel
 	defer func() {
 		<-isClose
