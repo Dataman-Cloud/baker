@@ -108,7 +108,6 @@ func worker(w *WorkPool) {
 		case <-w.stopping:
 			w.workerStopping(true)
 			return
-
 		case work := <-w.workQueue:
 			w.mutex.Lock()
 			w.idleWorkers--
