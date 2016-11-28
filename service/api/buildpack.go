@@ -292,16 +292,16 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	// stream
-	chErr := collector.Stream(c)
+	isClose := collector.Stream(c)
 	collector.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
 	// task execute
 	go taskExec.Execute()
-	select {
-	case r := <-chErr:
-		logrus.Info(r)
+	// close channel
+	defer func() {
+		<-isClose
 		close(taskStats)
-		close(chErr)
-	}
+		close(isClose)
+	}()
 }
 
 // copy app files, baker, run.sh, dockerfile to workspace directory
