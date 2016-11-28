@@ -2,7 +2,10 @@ package executor
 
 import (
 	"sync"
+	"time"
 )
+
+const timeout = 3 * time.Minute
 
 type Executor struct {
 	Pool      *WorkPool
@@ -35,8 +38,14 @@ func (t *Executor) Execute() {
 				task()
 			}
 		}
+		// timeout timer.
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
 		// submit work
-		t.Pool.Submit(w)
+		go t.Pool.Submit(w)
+		<-timer.C
+		t.Collector.TaskStats <- &TaskStats{Code: StatusExpired}
+		timer.Reset(timeout)
 	}
 	wg.Wait()
 }
