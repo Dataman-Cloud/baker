@@ -26,13 +26,17 @@ func NewExecutor(pool *WorkPool, works []*Work, collector *Collector) (*Executor
 	}, nil
 }
 
-func (t *Executor) Execute() {
+func (t *Executor) Execute(isClose chan bool) {
 	// defer t.Pool.Stop() // stop pool in baker server stop.
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Works))
 	for _, work := range t.Works {
 		tasks := work.Tasks
 		w := func() {
+			go func() {
+				<-isClose
+				return
+			}()
 			defer wg.Done()
 			for _, task := range tasks {
 				task()
