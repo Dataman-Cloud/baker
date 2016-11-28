@@ -1,7 +1,7 @@
 package executor
 
 import (
-	_ "errors"
+	"errors"
 	_ "net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -26,7 +26,8 @@ func NewCollector(taskID string, taskStats chan *TaskStats) *Collector {
 	}
 }
 
-func (c *Collector) Stream(ctx *gin.Context) {
+func (c *Collector) Stream(ctx *gin.Context) chan error {
+	e := make(chan error)
 	w := ctx.Writer
 	clientClose := w.CloseNotify()
 	go func() {
@@ -35,6 +36,8 @@ func (c *Collector) Stream(ctx *gin.Context) {
 			select {
 			case <-clientClose:
 				logrus.Infof("Close Nodify") // nothing to do.
+				e <- errors.New("abc")
+				return
 			case ts := <-c.TaskStats:
 				var data string
 				status := TaskStatusEnum[ts.Code]
@@ -56,4 +59,5 @@ func (c *Collector) Stream(ctx *gin.Context) {
 			}
 		}
 	}()
+	return e
 }
