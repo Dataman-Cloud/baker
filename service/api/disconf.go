@@ -53,7 +53,7 @@ func DisConfPush(c *gin.Context) {
 
 	c.JSON(http.StatusOK, struct {
 		Filepath string
-	}{containerPath})
+	}{path})
 }
 
 // DisConfPull is a endpoint that
