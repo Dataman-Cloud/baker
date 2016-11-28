@@ -278,9 +278,8 @@ func BuildpackImagePush(c *gin.Context) {
 	imageName := appName + ":" + timestamp
 	imagePush := executor.NewImagePush(workDir, imageName, &cf.DockerRegistry) // new imagepush task.
 	// create task collector.
-	taskID := workID // a task per work.
 	taskStats := make(chan *executor.TaskStats)
-	cl := executor.NewCollector(taskID, taskStats)
+	cl := executor.NewCollector(workID, taskStats)
 	// create work.
 	works := make([]*executor.Work, 1)
 	works[0] = &executor.Work{

@@ -7,7 +7,7 @@ import (
 )
 
 type Collector struct {
-	TaskID    string
+	WorkID    string
 	TaskStats chan *TaskStats
 }
 
@@ -16,9 +16,9 @@ type TaskStats struct {
 	Message string
 }
 
-func NewCollector(taskID string, taskStats chan *TaskStats) *Collector {
+func NewCollector(workID string, taskStats chan *TaskStats) *Collector {
 	return &Collector{
-		TaskID:    taskID,
+		WorkID:    workID,
 		TaskStats: taskStats,
 	}
 }
@@ -40,11 +40,11 @@ func (c *Collector) Stream(ctx *gin.Context) chan bool {
 				status := TaskStatusEnum[ts.Code]
 				e := ts.Message
 				if e != "" {
-					logrus.Infof("taskID:%s status:%s message:%s", c.TaskID, status, e)
-					data = "taskID:" + c.TaskID + " " + "status:" + status + " message:" + e
+					logrus.Infof("workID:%s taskstatus:%s message:%s", c.WorkID, status, e)
+					data = "workID:" + c.WorkID + " " + "status:" + status + " message:" + e
 				} else {
-					logrus.Infof("taskID:%s status:%s", c.TaskID, status)
-					data = "taskID:" + c.TaskID + " " + "status:" + status
+					logrus.Infof("workID:%s taskstatus:%s", c.WorkID, status)
+					data = "workID:" + c.WorkID + " " + "status:" + status
 				}
 				sse.Encode(w, sse.Event{Event: "task-status", Data: data})
 				w.Flush()
