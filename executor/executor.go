@@ -40,7 +40,7 @@ func (t *Executor) Execute() {
 			defer timer.Stop()
 			go func() {
 				<-timer.C
-				t.collector.TaskStats <- &TaskStats{Code: StatusExpired}
+				t.Collector.TaskStats <- &TaskStats{Code: StatusExpired}
 				timer.Reset(timeout)
 			}()
 			for _, task := range tasks {
