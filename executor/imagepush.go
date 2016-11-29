@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"sync/atomic"
+
 	"github.com/Sirupsen/logrus"
 
 	"github.com/Dataman-Cloud/baker/config"
@@ -12,6 +14,7 @@ type ImagePush struct {
 	ImageName string
 	Config    *config.DockerRegistry
 	Client    *docker.DockerClient
+	Stopped   int32
 }
 
 // NewImagePush is a task to do build image and push image to registry
@@ -24,26 +27,30 @@ func NewImagePush(workDir, imageName string, config *config.DockerRegistry) *Ima
 	}
 }
 
+func (t *ImagePush) Stop() {
+	atomic.CompareAndSwapInt32(&t.Stopped, 0, 1)
+}
+
 // Before
 func (t *ImagePush) Before(c *Collector) func() {
 	return func() {
-		if _, ok := (<-c.TaskStats); ok {
-			c.TaskStats <- &TaskStats{Code: StatusRunning}
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
 		}
+		c.TaskStats <- &TaskStats{Code: StatusRunning}
 	}
 }
 
 // After
 func (t *ImagePush) After(c *Collector) func() {
 	return func() {
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
+		}
 		if r := recover(); r != nil {
-			if _, ok := (<-c.TaskStats); ok {
-				c.TaskStats <- &TaskStats{Code: StatusFailed}
-			}
+			c.TaskStats <- &TaskStats{Code: StatusFailed}
 		} else {
-			if _, ok := (<-c.TaskStats); ok {
-				c.TaskStats <- &TaskStats{Code: StatusFinished}
-			}
+			c.TaskStats <- &TaskStats{Code: StatusFinished}
 		}
 	}
 }
@@ -51,9 +58,10 @@ func (t *ImagePush) After(c *Collector) func() {
 // DockerLogin
 func (t *ImagePush) DockerLogin(c *Collector) func() {
 	return func() {
-		if _, ok := (<-c.TaskStats); ok {
-			c.TaskStats <- &TaskStats{Code: StatusDockerLoginStart}
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
 		}
+		c.TaskStats <- &TaskStats{Code: StatusDockerLoginStart}
 		config := t.Config
 		registry := config.Address
 		err := t.Client.DockerLogin(config.Username, config.Password,
@@ -62,18 +70,20 @@ func (t *ImagePush) DockerLogin(c *Collector) func() {
 			logrus.Error("error docker login to the registry.")
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
-		if _, ok := (<-c.TaskStats); ok {
-			c.TaskStats <- &TaskStats{Code: StatusDockerLoginOK}
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
 		}
+		c.TaskStats <- &TaskStats{Code: StatusDockerLoginOK}
 	}
 }
 
 // DockerBuild
 func (t *ImagePush) DockerBuild(c *Collector) func() {
 	return func() {
-		if _, ok := (<-c.TaskStats); ok {
-			c.TaskStats <- &TaskStats{Code: StatusDockerBuildStart}
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
 		}
+		c.TaskStats <- &TaskStats{Code: StatusDockerBuildStart}
 		config := t.Config
 		registry := config.Address
 		repo := config.Repo
@@ -83,18 +93,20 @@ func (t *ImagePush) DockerBuild(c *Collector) func() {
 			logrus.Error("error build image from dockerfile.")
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
-		if _, ok := (<-c.TaskStats); ok {
-			c.TaskStats <- &TaskStats{Code: StatusDockerBuildOK}
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
 		}
+		c.TaskStats <- &TaskStats{Code: StatusDockerBuildOK}
 	}
 }
 
 // DockerPush
 func (t *ImagePush) DockerPush(c *Collector) func() {
 	return func() {
-		if _, ok := (<-c.TaskStats); ok {
-			c.TaskStats <- &TaskStats{Code: StatusDockerPushStart}
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
 		}
+		c.TaskStats <- &TaskStats{Code: StatusDockerPushStart}
 		config := t.Config
 		registry := config.Address
 		repo := config.Repo
@@ -104,8 +116,9 @@ func (t *ImagePush) DockerPush(c *Collector) func() {
 			logrus.Error("error docker push image to the registry.")
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
-		if _, ok := (<-c.TaskStats); ok {
-			c.TaskStats <- &TaskStats{Code: StatusDockerPushOK}
+		if atomic.LoadInt32(&t.Stopped) == 1 {
+			return
 		}
+		c.TaskStats <- &TaskStats{Code: StatusDockerPushOK}
 	}
 }
