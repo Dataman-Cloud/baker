@@ -33,6 +33,7 @@ func (t *Executor) Execute(dst chan bool) {
 	// defer t.Pool.Stop() // stop pool in baker server stop.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	// context cancel under dst channel.
 	go func() {
 		<-dst
 		cancel()
@@ -48,6 +49,7 @@ func (t *Executor) Execute(dst chan bool) {
 					task()
 				}
 			}()
+			// context cancel.
 			for {
 				select {
 				case <-ctx.Done():
