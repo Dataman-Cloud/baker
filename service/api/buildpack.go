@@ -277,9 +277,9 @@ func BuildpackImagePush(c *gin.Context) {
 	cf := c.MustGet("config").(*config.Config)
 	imageName := appName + ":" + timestamp
 	imagePush := executor.NewImagePush(workDir, imageName, &cf.DockerRegistry) // new imagepush task.
-	// create task collector.
 	taskStats := make(chan *executor.TaskStats)
-	cl := executor.NewCollector(workID, taskStats)
+	cl := executor.NewCollector(workID, taskStats) // create collector.
+	dst := cl.Stream(c)                            // stream
 	// create work.
 	works := make([]*executor.Work, 1)
 	works[0] = &executor.Work{
@@ -298,10 +298,8 @@ func BuildpackImagePush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	dst := cl.Stream(c) // stream
-	cl.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
-	go workExec.Execute(dst) // execute work.
-	// close channel
+	workExec.Execute(dst) // execute work.
+	// close
 	defer func() {
 		<-dst
 		imagePush.Stop()
