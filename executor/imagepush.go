@@ -27,7 +27,9 @@ func NewImagePush(workDir, imageName string, config *config.DockerRegistry) *Ima
 // Before
 func (t *ImagePush) Before(c *Collector) func() {
 	return func() {
-		c.TaskStats <- &TaskStats{Code: StatusRunning}
+		if _, ok := (<-c.TaskStats); ok {
+			c.TaskStats <- &TaskStats{Code: StatusRunning}
+		}
 	}
 }
 
@@ -35,9 +37,13 @@ func (t *ImagePush) Before(c *Collector) func() {
 func (t *ImagePush) After(c *Collector) func() {
 	return func() {
 		if r := recover(); r != nil {
-			c.TaskStats <- &TaskStats{Code: StatusFailed}
+			if _, ok := (<-c.TaskStats); ok {
+				c.TaskStats <- &TaskStats{Code: StatusFailed}
+			}
 		} else {
-			c.TaskStats <- &TaskStats{Code: StatusFinished}
+			if _, ok := (<-c.TaskStats); ok {
+				c.TaskStats <- &TaskStats{Code: StatusFinished}
+			}
 		}
 	}
 }
@@ -45,7 +51,9 @@ func (t *ImagePush) After(c *Collector) func() {
 // DockerLogin
 func (t *ImagePush) DockerLogin(c *Collector) func() {
 	return func() {
-		c.TaskStats <- &TaskStats{Code: StatusDockerLoginStart}
+		if _, ok := (<-c.TaskStats); ok {
+			c.TaskStats <- &TaskStats{Code: StatusDockerLoginStart}
+		}
 		config := t.Config
 		registry := config.Address
 		err := t.Client.DockerLogin(config.Username, config.Password,
@@ -54,14 +62,18 @@ func (t *ImagePush) DockerLogin(c *Collector) func() {
 			logrus.Error("error docker login to the registry.")
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
-		c.TaskStats <- &TaskStats{Code: StatusDockerLoginOK}
+		if _, ok := (<-c.TaskStats); ok {
+			c.TaskStats <- &TaskStats{Code: StatusDockerLoginOK}
+		}
 	}
 }
 
 // DockerBuild
 func (t *ImagePush) DockerBuild(c *Collector) func() {
 	return func() {
-		c.TaskStats <- &TaskStats{Code: StatusDockerBuildStart}
+		if _, ok := (<-c.TaskStats); ok {
+			c.TaskStats <- &TaskStats{Code: StatusDockerBuildStart}
+		}
 		config := t.Config
 		registry := config.Address
 		repo := config.Repo
@@ -71,14 +83,18 @@ func (t *ImagePush) DockerBuild(c *Collector) func() {
 			logrus.Error("error build image from dockerfile.")
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
-		c.TaskStats <- &TaskStats{Code: StatusDockerBuildOK}
+		if _, ok := (<-c.TaskStats); ok {
+			c.TaskStats <- &TaskStats{Code: StatusDockerBuildOK}
+		}
 	}
 }
 
 // DockerPush
 func (t *ImagePush) DockerPush(c *Collector) func() {
 	return func() {
-		c.TaskStats <- &TaskStats{Code: StatusDockerPushStart}
+		if _, ok := (<-c.TaskStats); ok {
+			c.TaskStats <- &TaskStats{Code: StatusDockerPushStart}
+		}
 		config := t.Config
 		registry := config.Address
 		repo := config.Repo
@@ -88,6 +104,8 @@ func (t *ImagePush) DockerPush(c *Collector) func() {
 			logrus.Error("error docker push image to the registry.")
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
-		c.TaskStats <- &TaskStats{Code: StatusDockerPushOK}
+		if _, ok := (<-c.TaskStats); ok {
+			c.TaskStats <- &TaskStats{Code: StatusDockerPushOK}
+		}
 	}
 }
