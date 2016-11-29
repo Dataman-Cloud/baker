@@ -36,6 +36,13 @@ func (t *Executor) Execute() {
 		tasks := work.Tasks
 		w := func() error {
 			defer wg.Done()
+			timer := time.NewTimer(timeout)
+			defer timer.Stop()
+			go func() {
+				<-timer.C
+				t.collector.TaskStats <- &TaskStats{Code: StatusExpired}
+				timer.Reset(timeout)
+			}()
 			for _, task := range tasks {
 				task()
 			}
