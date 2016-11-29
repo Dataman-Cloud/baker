@@ -304,6 +304,7 @@ func BuildpackImagePush(c *gin.Context) {
 	// close channel
 	defer func() {
 		<-dst
+		imagePush.Stop()
 		close(taskStats)
 		close(dst)
 	}()
