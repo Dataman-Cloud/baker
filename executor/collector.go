@@ -26,12 +26,12 @@ func NewCollector(workID string, taskStats chan *TaskStats) *Collector {
 func (c *Collector) Stream(ctx *gin.Context) chan bool {
 	dst := make(chan bool)
 	w := ctx.Writer
-	close := w.CloseNotify()
+	closeNotify := w.CloseNotify()
 	go func() {
 		logrus.Info("Collector start")
 		for {
 			select {
-			case <-close:
+			case <-closeNotify:
 				logrus.Infof("Close Nodify") // nothing to do.
 				dst <- true
 				return
@@ -41,7 +41,7 @@ func (c *Collector) Stream(ctx *gin.Context) chan bool {
 				e := ts.Message
 				data = "workID:" + c.WorkID + " " + "status:" + status
 				if e != "" {
-					data = data + status + " message:" + e
+					data = data + " message:" + e
 				}
 				logrus.Info(data)
 				sse.Encode(w, sse.Event{Event: "task-status", Data: data})
