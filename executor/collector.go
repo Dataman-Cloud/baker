@@ -39,13 +39,11 @@ func (c *Collector) Stream(ctx *gin.Context) chan bool {
 				var data string
 				status := TaskStatusEnum[ts.Code]
 				e := ts.Message
+				data = "workID:" + c.WorkID + " " + "status:" + status
 				if e != "" {
-					logrus.Infof("workID:%s taskstatus:%s message:%s", c.WorkID, status, e)
-					data = "workID:" + c.WorkID + " " + "status:" + status + " message:" + e
-				} else {
-					logrus.Infof("workID:%s taskstatus:%s", c.WorkID, status)
-					data = "workID:" + c.WorkID + " " + "status:" + status
+					data = data + status + " message:" + e
 				}
+				logrus.Info(data)
 				sse.Encode(w, sse.Event{Event: "task-status", Data: data})
 				w.Flush()
 				if ts.Code == StatusFinished || ts.Code == StatusFailed || ts.Code == StatusExpired {
