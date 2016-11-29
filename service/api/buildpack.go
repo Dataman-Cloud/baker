@@ -303,7 +303,6 @@ func BuildpackImagePush(c *gin.Context) {
 	// close
 	defer func() {
 		<-dst
-		logrus.Info("XXXX")
 		imagePush.Stop()
 		close(taskStats)
 		close(dst)
