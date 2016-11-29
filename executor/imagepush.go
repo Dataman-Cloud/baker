@@ -77,6 +77,9 @@ func (t *ImagePush) DockerLogin(c *Collector) func() {
 			config.Email, registry)
 		if err != nil {
 			logrus.Error("error docker login to the registry.")
+			if atomic.LoadInt32(&t.Stopped) == 1 {
+				return
+			}
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
 		if atomic.LoadInt32(&t.Stopped) == 1 {
@@ -100,6 +103,9 @@ func (t *ImagePush) DockerBuild(c *Collector) func() {
 		err := t.Client.DockerBuild(imageAddrAndName, t.WorkDir, "Dockerfile")
 		if err != nil {
 			logrus.Error("error build image from dockerfile.")
+			if atomic.LoadInt32(&t.Stopped) == 1 {
+				return
+			}
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
 		if atomic.LoadInt32(&t.Stopped) == 1 {
@@ -123,6 +129,9 @@ func (t *ImagePush) DockerPush(c *Collector) func() {
 		err := t.Client.DockerPush(imageAddrAndName, registry)
 		if err != nil {
 			logrus.Error("error docker push image to the registry.")
+			if atomic.LoadInt32(&t.Stopped) == 1 {
+				return
+			}
 			c.TaskStats <- &TaskStats{Code: StatusFailed, Message: err.Error()}
 		}
 		if atomic.LoadInt32(&t.Stopped) == 1 {
