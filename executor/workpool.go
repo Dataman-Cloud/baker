@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-
-	"golang.org/x/net/context"
 )
 
 type WorkPool struct {
-	workQueue chan func(ctx context.Context, dst chan bool) error
+	workQueue chan func() error
 	stopping  chan struct{}
 	stopped   int32
 
@@ -29,13 +27,13 @@ func NewWorkPool(maxWorkers int) (*WorkPool, error) {
 
 func newWorkPoolWithPending(maxWorkers, pending int) *WorkPool {
 	return &WorkPool{
-		workQueue:  make(chan func(ctx context.Context, dst chan bool) error, maxWorkers+pending),
+		workQueue:  make(chan func() error, maxWorkers+pending),
 		stopping:   make(chan struct{}),
 		maxWorkers: maxWorkers,
 	}
 }
 
-func (w *WorkPool) Submit(ctx context.Context, dst chan bool, work func(ctx context.Context, dst chan bool) error) {
+func (w *WorkPool) Submit(work func() error) {
 	if atomic.LoadInt32(&w.stopped) == 1 {
 		return
 	}
@@ -45,7 +43,7 @@ func (w *WorkPool) Submit(ctx context.Context, dst chan bool, work func(ctx cont
 		if atomic.LoadInt32(&w.stopped) == 1 {
 			w.drain()
 		} else {
-			w.addWorker(ctx, dst)
+			w.addWorker()
 		}
 	case <-w.stopping:
 	}
@@ -58,7 +56,7 @@ func (w *WorkPool) Stop() {
 	}
 }
 
-func (w *WorkPool) addWorker(ctx context.Context, dst chan bool) bool {
+func (w *WorkPool) addWorker() bool {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -67,7 +65,7 @@ func (w *WorkPool) addWorker(ctx context.Context, dst chan bool) bool {
 	}
 
 	w.numWorkers++
-	go worker(ctx, dst, w)
+	go worker(w)
 	return true
 }
 
@@ -96,13 +94,12 @@ func (w *WorkPool) drain() {
 	}
 }
 
-func worker(ctx context.Context, dst chan bool, w *WorkPool) {
+func worker(w *WorkPool) {
 	for {
 		if atomic.LoadInt32(&w.stopped) == 1 {
 			w.workerStopping(true)
 			return
 		}
-
 		select {
 		case <-w.stopping:
 			w.workerStopping(true)
@@ -114,7 +111,7 @@ func worker(ctx context.Context, dst chan bool, w *WorkPool) {
 
 		NOWORK:
 			for {
-				work(ctx, dst)
+				work()
 				select {
 				case work = <-w.workQueue:
 				case <-w.stopping:

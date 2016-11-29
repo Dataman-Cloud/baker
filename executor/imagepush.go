@@ -28,13 +28,11 @@ func NewImagePush(workDir, imageName string, config *config.DockerRegistry) *Ima
 }
 
 // Start
-func (t *ImagePush) Start(c *Collector) func() {
-	return func() {
-		if atomic.LoadInt32(&t.Stopped) == 1 {
-			return
-		}
-		c.TaskStats <- &TaskStats{Code: StatusStarting}
+func (t *ImagePush) Start(c *Collector) {
+	if atomic.LoadInt32(&t.Stopped) == 1 {
+		return
 	}
+	c.TaskStats <- &TaskStats{Code: StatusStarting}
 }
 
 // Stop

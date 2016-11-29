@@ -4,8 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
+	_ "golang.org/x/net/context"
 )
 
 const timeout = 3 * time.Minute
@@ -29,38 +28,21 @@ func NewExecutor(pool *WorkPool, works []*Work, collector *Collector) (*Executor
 	}, nil
 }
 
-func (t *Executor) Execute(dst chan bool) {
+func (t *Executor) Execute() {
 	// defer t.Pool.Stop() // stop pool in baker server stop.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	// context cancel under dst channel.
-	go func() {
-		<-dst
-		cancel()
-	}()
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Works))
 	for _, work := range t.Works {
 		tasks := work.Tasks
-		w := func(ctx context.Context, dst chan bool) error {
+		w := func() error {
 			defer wg.Done()
-			go func() {
-				for _, task := range tasks {
-					task()
-				}
-			}()
-			// context cancel.
-			for {
-				select {
-				case <-ctx.Done():
-					logrus.Info("Cancel the context")
-					return ctx.Err()
-				}
+			for _, task := range tasks {
+				task()
 			}
 			return nil
 		}
 		// submit work
-		t.Pool.Submit(ctx, dst, w)
+		t.Pool.Submit(w)
 	}
 	wg.Wait()
 }

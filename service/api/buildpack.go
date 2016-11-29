@@ -299,7 +299,7 @@ func BuildpackImagePush(c *gin.Context) {
 		return
 	}
 	imagePush.Start(cl)
-	workExec.Execute(dst) // execute work.
+	workExec.Execute() // execute work.
 	// close
 	defer func() {
 		<-dst
