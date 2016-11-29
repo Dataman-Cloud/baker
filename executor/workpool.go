@@ -9,7 +9,7 @@ import (
 )
 
 type WorkPool struct {
-	workQueue chan func(ctx context.Context) error
+	workQueue chan func(ctx context.Context, dst chan bool) error
 	stopping  chan struct{}
 	stopped   int32
 
@@ -29,13 +29,13 @@ func NewWorkPool(maxWorkers int) (*WorkPool, error) {
 
 func newWorkPoolWithPending(maxWorkers, pending int) *WorkPool {
 	return &WorkPool{
-		workQueue:  make(chan func(ctx context.Context) error, maxWorkers+pending),
+		workQueue:  make(chan func(ctx context.Context, dst chan bool) error, maxWorkers+pending),
 		stopping:   make(chan struct{}),
 		maxWorkers: maxWorkers,
 	}
 }
 
-func (w *WorkPool) Submit(ctx context.Context, work func(ctx context.Context) error) {
+func (w *WorkPool) Submit(ctx context.Context, dst chan bool, work func(ctx context.Context, dst chan bool) error) {
 	if atomic.LoadInt32(&w.stopped) == 1 {
 		return
 	}
@@ -45,7 +45,7 @@ func (w *WorkPool) Submit(ctx context.Context, work func(ctx context.Context) er
 		if atomic.LoadInt32(&w.stopped) == 1 {
 			w.drain()
 		} else {
-			w.addWorker(ctx)
+			w.addWorker(ctx, dst)
 		}
 	case <-w.stopping:
 	}
@@ -58,7 +58,7 @@ func (w *WorkPool) Stop() {
 	}
 }
 
-func (w *WorkPool) addWorker(ctx context.Context) bool {
+func (w *WorkPool) addWorker(ctx context.Context, dst chan bool) bool {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -67,7 +67,7 @@ func (w *WorkPool) addWorker(ctx context.Context) bool {
 	}
 
 	w.numWorkers++
-	go worker(ctx, w)
+	go worker(ctx, dst, w)
 	return true
 }
 
@@ -96,7 +96,7 @@ func (w *WorkPool) drain() {
 	}
 }
 
-func worker(ctx context.Context, w *WorkPool) {
+func worker(ctx context.Context, dst chan bool, w *WorkPool) {
 	for {
 		if atomic.LoadInt32(&w.stopped) == 1 {
 			w.workerStopping(true)
@@ -114,7 +114,7 @@ func worker(ctx context.Context, w *WorkPool) {
 
 		NOWORK:
 			for {
-				work(ctx)
+				work(ctx, dst)
 				select {
 				case work = <-w.workQueue:
 				case <-w.stopping:

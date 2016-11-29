@@ -298,14 +298,14 @@ func BuildpackImagePush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	isClose := cl.Stream(c) // stream
+	dst := cl.Stream(c) // stream
 	cl.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
-	go workExec.Execute() // execute work.
+	go workExec.Execute(dst) // execute work.
 	// close channel
 	defer func() {
-		<-isClose
+		<-dst
 		close(taskStats)
-		close(isClose)
+		close(dst)
 	}()
 }
 

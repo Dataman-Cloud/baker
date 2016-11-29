@@ -24,16 +24,16 @@ func NewCollector(workID string, taskStats chan *TaskStats) *Collector {
 }
 
 func (c *Collector) Stream(ctx *gin.Context) chan bool {
-	isClose := make(chan bool)
+	dst := make(chan bool)
 	w := ctx.Writer
-	clientClose := w.CloseNotify()
+	close := w.CloseNotify()
 	go func() {
 		logrus.Info("Collector start")
 		for {
 			select {
-			case <-clientClose:
+			case <-close:
 				logrus.Infof("Close Nodify") // nothing to do.
-				isClose <- true
+				dst <- true
 				return
 			case ts := <-c.TaskStats:
 				var data string
@@ -56,5 +56,5 @@ func (c *Collector) Stream(ctx *gin.Context) chan bool {
 			}
 		}
 	}()
-	return isClose
+	return dst
 }
