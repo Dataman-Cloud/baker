@@ -3,9 +3,12 @@ package executor
 import (
 	"sync"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
-const timeout = 3 * time.Minute
+const timeout = 5 * time.Minute
 
 type Executor struct {
 	Pool      *WorkPool
@@ -26,30 +29,29 @@ func NewExecutor(pool *WorkPool, works []*Work, collector *Collector) (*Executor
 	}, nil
 }
 
-func (t *Executor) Execute(isClose chan bool) {
+func (t *Executor) Execute() {
 	// defer t.Pool.Stop() // stop pool in baker server stop.
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 	wg := sync.WaitGroup{}
 	wg.Add(len(t.Works))
 	for _, work := range t.Works {
 		tasks := work.Tasks
-		w := func() {
-			go func() {
-				<-isClose
-				return
-			}()
+		w := func(ctx context.Context) error {
 			defer wg.Done()
-			for _, task := range tasks {
-				task()
+			select {
+			case <-ctx.Done():
+				logrus.Info("Cancel the context")
+				return ctx.Err()
+			default:
+				for _, task := range tasks {
+					task()
+				}
 			}
+			return nil
 		}
-		// timeout timer.
-		timer := time.NewTimer(timeout)
-		defer timer.Stop()
 		// submit work
-		go t.Pool.Submit(w)
-		<-timer.C
-		t.Collector.TaskStats <- &TaskStats{Code: StatusExpired}
-		timer.Reset(timeout)
+		t.Pool.Submit(ctx, w)
 	}
 	wg.Wait()
 }
