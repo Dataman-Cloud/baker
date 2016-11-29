@@ -298,6 +298,7 @@ func BuildpackImagePush(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	imagePush.Start(cl)
 	workExec.Execute(dst) // execute work.
 	// close
 	defer func() {
