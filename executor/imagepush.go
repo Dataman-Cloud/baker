@@ -19,6 +19,11 @@ type ImagePush struct {
 
 // NewImagePush is a task to do build image and push image to registry
 func NewImagePush(workDir, imageName string, config *config.DockerRegistry) *ImagePush {
+	if atomic.LoadInt32(&t.Stopped) == 1 {
+
+		return
+	}
+	cl.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
 	return &ImagePush{
 		Client:    docker.NewDockerClient(),
 		Config:    config,
