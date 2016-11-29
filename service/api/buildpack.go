@@ -300,7 +300,7 @@ func BuildpackImagePush(c *gin.Context) {
 	}
 	isClose := cl.Stream(c) // stream
 	cl.TaskStats <- &executor.TaskStats{Code: executor.StatusStarting}
-	go workExec.Execute(isClose) // execute work.
+	go workExec.Execute() // execute work.
 	// close channel
 	defer func() {
 		<-isClose
